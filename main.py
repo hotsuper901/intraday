@@ -67,6 +67,13 @@ async def bars_for(ticker: str, client: httpx.AsyncClient) -> tuple[list, dict |
             source = "demo"
             db.init_db()
             data = await asyncio.to_thread(fetch_demo, ticker)
+        if not data and config.SERVERLESS and asset_class(ticker) == "fx":
+            # No keyless FX candle source serves datacenter IPs (Yahoo/Binance/
+            # Bybit/Stooq/Dukascopy all refuse). Fill FX with clearly-labeled
+            # demo bars so every symbol has candles on Vercel.
+            source = "demo"
+            db.init_db()
+            data = await asyncio.to_thread(fetch_demo, ticker)
         if not data:
             # Quote-level fallback for equities/FX: keeps the screener alive
             # with real prices when Yahoo refuses datacenter IPs.
@@ -274,7 +281,7 @@ def api_status():
     state, mins = market_state()
     return JSONResponse(
         {
-            "version": "v10",
+            "version": "v11",
             "mode": config.DATA_MODE,
             "watchlist": config.WATCHLIST,
             "market_state": state,
