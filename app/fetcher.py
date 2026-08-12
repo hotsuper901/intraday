@@ -32,6 +32,7 @@ CNBC_QUOTE_URL = "https://quote.cnbc.com/quote-html-webservice/restQuote/symbolT
 KRAKEN_OHLC_URL = "https://api.kraken.com/0/public/OHLC"
 COINBASE_CANDLES_URL = "https://api.exchange.coinbase.com/products/{pair}/candles"
 KUCOIN_CANDLES_URL = "https://api.kucoin.com/api/v1/market/candles"
+NASDAQ_CHART_URL = "https://api.nasdaq.com/api/quote/{sym}/chart"
 CRYPTO_WINDOW = 288  # 24h of 5m bars
 
 KRAKEN_PAIRS = {
@@ -274,6 +275,88 @@ async def fetch_cnbc_quote(client: httpx.AsyncClient, ticker: str) -> dict | Non
         return None
 
 
+async def _fetch_yahoo_with_crumb(client: httpx.AsyncClient, ticker: str) -> dict | None:
+    """Yahoo's cookie+crumb handshake. Sometimes unblocks 429s where plain
+    requests are rate-limited."""
+    try:
+        await client.get(
+            "https://fc.yahoo.com",
+            headers={"User-Agent": config.USER_AGENT},
+            timeout=config.HTTP_TIMEOUT,
+        )
+        crumb_resp = await client.get(
+            "https://query1.finance.yahoo.com/v1/test/getcrumb",
+            headers={"User-Agent": config.USER_AGENT},
+            timeout=config.HTTP_TIMEOUT,
+        )
+        crumb = crumb_resp.text.strip()
+        if not crumb or "Too Many" in crumb or len(crumb) > 40:
+            return None
+        url = YAHOO_HOSTS[0].format(ticker=ticker)
+        resp = await client.get(
+            url,
+            params={"range": "1d", "interval": "5m", "crumb": crumb},
+            headers={"User-Agent": config.USER_AGENT},
+            timeout=config.HTTP_TIMEOUT,
+        )
+        if resp.status_code == 200:
+            return _parse_chart(ticker, resp.json())
+    except (httpx.HTTPError, ValueError, KeyError, IndexError, TypeError):
+        pass
+    return None
+
+
+async def _fetch_nasdaq_series(client: httpx.AsyncClient, ticker: str) -> dict | None:
+    """Nasdaq's public intraday chart: 5-minute closes (no OHLC). We build
+    honest wickless candles from consecutive closes — the bodies are real
+    price moves, high/low are simply the body extremes."""
+    if asset_class(ticker) != "equity":
+        return None
+    try:
+        resp = await client.get(
+            NASDAQ_CHART_URL.format(sym=ticker),
+            params={"assetclass": "stocks"},
+            headers={"User-Agent": config.USER_AGENT, "Accept": "application/json"},
+            timeout=config.HTTP_TIMEOUT,
+        )
+        resp.raise_for_status()
+        chart = resp.json().get("data", {}).get("chart") or []
+        pts = []
+        for item in chart:
+            ts = item.get("x")
+            close = item.get("y")
+            if ts and close:
+                pts.append((int(ts) // 1000, float(close)))
+        if len(pts) < 5:
+            return None
+        bars = []
+        prev_close = pts[0][1]
+        for ts, close in pts:
+            open_p = prev_close
+            bars.append(
+                {
+                    "ts": ts,
+                    "open": round(open_p, 4),
+                    "high": round(max(open_p, close), 4),
+                    "low": round(min(open_p, close), 4),
+                    "close": round(close, 4),
+                    "volume": 0,
+                }
+            )
+            prev_close = close
+        bars = bars[-288:]
+        return {
+            "bars": bars,
+            "name": ticker,
+            "prev_close": bars[0]["open"],
+            "session_open": bars[0]["ts"],
+            "synthetic": True,
+        }
+    except (httpx.HTTPError, ValueError, KeyError, IndexError, TypeError) as e:
+        LAST_FETCH_ERRORS[ticker] = f"nasdaq:{type(e).__name__}: {e}"
+        return None
+
+
 async def fetch_ticker(client: httpx.AsyncClient, ticker: str) -> dict | None:
     """Returns {'bars': [...], 'name': str, 'prev_close': float, 'session_open': int}
     or None on any failure. Retries with backoff, rotates hosts, bootstraps
@@ -314,6 +397,14 @@ async def fetch_ticker(client: httpx.AsyncClient, ticker: str) -> dict | None:
                 data = await src(client, ticker)
                 if data:
                     return data
+        else:
+            # Equities/FX: crumb handshake, then Nasdaq close-series for equities.
+            crumbed = await _fetch_yahoo_with_crumb(client, ticker)
+            if crumbed:
+                return crumbed
+            series = await _fetch_nasdaq_series(client, ticker)
+            if series:
+                return series
         log.warning("fetch %s failed after retries: %s", ticker, last_err)
         return None
 
