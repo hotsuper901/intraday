@@ -435,11 +435,14 @@ async def fetch_ticker(client: httpx.AsyncClient, ticker: str) -> dict | None:
                 if data:
                     return data
         else:
-            # Equities/FX: Jina-proxied Yahoo (fresh IPs) → Nasdaq series.
+            # FX: Jina-proxied Yahoo (fresh IPs, real candles). Equities use
+            # the Nasdaq series. Jina is reserved for FX only (12 pairs) to
+            # stay under its free-tier rate limit.
             try:
-                via_jina = await _fetch_yahoo_via_jina(client, ticker)
-                if via_jina:
-                    return via_jina
+                if asset_class(ticker) == "fx":
+                    via_jina = await _fetch_yahoo_via_jina(client, ticker)
+                    if via_jina:
+                        return via_jina
                 series = await _fetch_nasdaq_series(client, ticker)
                 if series:
                     return series
