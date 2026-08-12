@@ -281,7 +281,7 @@ def api_status():
     state, mins = market_state()
     return JSONResponse(
         {
-            "version": "v11",
+            "version": "v13",
             "mode": config.DATA_MODE,
             "watchlist": config.WATCHLIST,
             "market_state": state,

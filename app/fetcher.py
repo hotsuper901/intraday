@@ -3,8 +3,10 @@ deterministic demo generator so the app is fully usable with no network."""
 from __future__ import annotations
 
 import asyncio
+import json
 import logging
 import random
+import urllib.parse
 import warnings
 from datetime import datetime, timedelta, timezone
 from zoneinfo import ZoneInfo
@@ -33,6 +35,7 @@ KRAKEN_OHLC_URL = "https://api.kraken.com/0/public/OHLC"
 COINBASE_CANDLES_URL = "https://api.exchange.coinbase.com/products/{pair}/candles"
 KUCOIN_CANDLES_URL = "https://api.kucoin.com/api/v1/market/candles"
 NASDAQ_CHART_URL = "https://api.nasdaq.com/api/quote/{sym}/chart"
+JINA_BASE = "https://r.jina.ai/"
 CRYPTO_WINDOW = 288  # 24h of 5m bars
 
 KRAKEN_PAIRS = {
@@ -275,6 +278,33 @@ async def fetch_cnbc_quote(client: httpx.AsyncClient, ticker: str) -> dict | Non
         return None
 
 
+async def _fetch_yahoo_via_jina(client: httpx.AsyncClient, ticker: str) -> dict | None:
+    """Yahoo chart data through Jina AI's reader proxy. Jina fetches from
+    Google Cloud IPs that Yahoo does not rate-limit, so this unblocks real
+    candles for equities and FX on serverless platforms. Free tier: ~20
+    requests/minute — fine with CDN caching on top."""
+    yahoo_url = YAHOO_HOSTS[0].format(ticker=ticker) + "?range=1d&interval=5m"
+    try:
+        resp = await client.get(
+            JINA_BASE + urllib.parse.quote(yahoo_url, safe=""),
+            # A realistic browser UA trips Jina's Cloudflare challenge; the
+            # simple UA is routed through their bot-allowed path.
+            headers={"User-Agent": "Mozilla/5.0"},
+            timeout=min(config.HTTP_TIMEOUT + 4.0, 9.0),
+        )
+        if resp.status_code != 200:
+            return None
+        marker = "Markdown Content:"
+        idx = resp.text.find(marker)
+        if idx == -1:
+            return None
+        payload = json.loads(resp.text[idx + len(marker):].strip())
+        return _parse_chart(ticker, payload)
+    except (httpx.HTTPError, ValueError, KeyError, IndexError, TypeError) as e:
+        LAST_FETCH_ERRORS[ticker] = f"jina:{type(e).__name__}: {e}"
+        return None
+
+
 async def _fetch_yahoo_with_crumb(client: httpx.AsyncClient, ticker: str) -> dict | None:
     """Yahoo's cookie+crumb handshake. Sometimes unblocks 429s where plain
     requests are rate-limited."""
@@ -405,11 +435,11 @@ async def fetch_ticker(client: httpx.AsyncClient, ticker: str) -> dict | None:
                 if data:
                     return data
         else:
-            # Equities/FX: crumb handshake, then Nasdaq close-series for equities.
+            # Equities/FX: Jina-proxied Yahoo (fresh IPs) → Nasdaq series.
             try:
-                crumbed = await _fetch_yahoo_with_crumb(client, ticker)
-                if crumbed:
-                    return crumbed
+                via_jina = await _fetch_yahoo_via_jina(client, ticker)
+                if via_jina:
+                    return via_jina
                 series = await _fetch_nasdaq_series(client, ticker)
                 if series:
                     return series

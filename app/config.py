@@ -26,6 +26,9 @@ LIVE_FALLBACK_TO_DEMO: bool = os.getenv("LIVE_FALLBACK_TO_DEMO", "0") == "1"
 # Serverless (Vercel sets VERCEL=1): functions have a ~10s budget, so keep the
 # fetch plan short — one retry, 6s timeouts. The dedicated poller uses more.
 SERVERLESS: bool = os.getenv("VERCEL", "0") == "1"
+# Finnhub free API key (finnhub.io) unlocks real candles for stocks, forex,
+# and crypto from any IP — the robust source for serverless deployments.
+FINNHUB_KEY: str = os.getenv("FINNHUB_KEY", "").strip()
 MAX_POSITION_PCT: float = float(os.getenv("MAX_POSITION_PCT", "25"))
 MAX_BARS_PER_TICKER: int = 1200
 HTTP_TIMEOUT: float = float(os.getenv("HTTP_TIMEOUT", "6" if SERVERLESS else "10"))
