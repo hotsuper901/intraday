@@ -6,6 +6,7 @@ import asyncio
 import json
 import logging
 import random
+import time
 import urllib.parse
 import warnings
 from datetime import datetime, timedelta, timezone
@@ -100,6 +101,7 @@ async def _fetch_kraken(client: httpx.AsyncClient, ticker: str, interval: int = 
                 rows = v
                 break
         if not rows:
+            LAST_FETCH_ERRORS[ticker] = f"kraken:empty result ({data.get('error') or 'rate-limited?'})"
             return None
         bars = [
             {
@@ -169,9 +171,15 @@ async def _fetch_kucoin(client: httpx.AsyncClient, ticker: str, interval: int = 
     symbols missing from Kraken/Coinbase like BNB."""
     sym = ticker.upper().split("-")[0] + "-USDT"
     try:
+        now_s = int(time.time())
         resp = await client.get(
             KUCOIN_CANDLES_URL,
-            params={"type": f"{interval}min", "symbol": sym},
+            params={
+                "type": f"{interval}min",
+                "symbol": sym,
+                "startAt": now_s - 86400,
+                "endAt": now_s,
+            },
             headers={"User-Agent": config.USER_AGENT},
             timeout=config.HTTP_TIMEOUT,
         )
