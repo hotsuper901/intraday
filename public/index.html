@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Screener — Intraday Radar</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+  <header class="topbar">
+    <a class="brand" href="/"><span class="logo">▮</span> Intraday <em>Radar</em></a>
+    <span class="byline">by <b>M.S.J Hafiz</b></span>
+    <div class="topbar-right">
+      <span class="pill" id="mode-pill">—</span>
+      <span class="pill" id="state-pill">—</span>
+      <span class="clock" id="et-clock">--:--:-- ET</span>
+      <button class="btn" id="refresh-btn">⟳ Refresh</button>
+    </div>
+  </header>
+  <main>
+    <section class="panel">
+      <div class="panel-head">
+        <h1>Screener <span class="sub">equities · crypto · forex — find the movers that matter</span></h1>
+        <div class="filters">
+          <label>Min chg % <input type="number" id="f-min-change" step="0.1" placeholder="0.0"></label>
+          <label>Min rel vol <input type="number" id="f-min-relvol" step="0.1" placeholder="0"></label>
+          <label>Min price <input type="number" id="f-min-price" step="0.01" placeholder="0"></label>
+          <label>Max price <input type="number" id="f-max-price" step="0.01" placeholder="∞"></label>
+          <label>Direction
+            <select id="f-direction">
+              <option value="any" selected>Any</option>
+              <option value="up">Up</option>
+              <option value="down">Down</option>
+            </select>
+          </label>
+          <button class="btn small" id="preset-movers">Movers</button>
+          <button class="btn small" id="preset-all">All</button>
+        </div>
+      </div>
+      <table class="grid" id="screener-table">
+        <thead>
+          <tr>
+            <th data-sort="change_desc">Ticker</th>
+            <th>Name</th>
+            <th data-sort="change_desc" class="num">Price</th>
+            <th data-sort="change_desc" class="num">Chg %</th>
+            <th class="num">Open %</th>
+            <th data-sort="relvol" class="num">RelVol</th>
+            <th data-sort="atr" class="num">ATR %</th>
+            <th data-sort="rsi" class="num">RSI</th>
+            <th class="num">VWAP Δ%</th>
+            <th class="num">Day Vol</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody id="rows">
+          <tr><td colspan="11" class="empty">Loading…</td></tr>
+        </tbody>
+      </table>
+      <div class="panel-foot">
+        <span id="refresh-note">waiting for first fetch</span>
+        <span id="row-count"></span>
+      </div>
+    </section>
+  </main>
+  <footer class="site-foot">
+    Intraday Radar <span class="sep">•</span> Crafted by <span class="credit">M.S.J Hafiz</span>
+  </footer>
+  <script src="/static/chart.js"></script>
+  <script src="/static/app.js"></script>
+</body>
+</html>

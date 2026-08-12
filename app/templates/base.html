@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}Intraday Radar{% endblock %}</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+  <header class="topbar">
+    <a class="brand" href="/"><span class="logo">▮</span> Intraday <em>Radar</em></a>
+    <span class="byline">by <b>M.S.J Hafiz</b></span>
+    <div class="topbar-right">
+      <span class="pill" id="mode-pill">{{ data_mode|upper }}</span>
+      <span class="pill" id="state-pill">{{ market_state|upper }}</span>
+      <span class="clock" id="et-clock">--:--:-- ET</span>
+      <button class="btn" id="refresh-btn" title="Fetch fresh bars now">⟳ Refresh</button>
+    </div>
+  </header>
+  <main>
+    {% block content %}{% endblock %}
+  </main>
+  <footer class="site-foot">
+    Intraday Radar <span class="sep">•</span> Crafted by <span class="credit">M.S.J Hafiz</span>
+  </footer>
+  <script src="/static/chart.js"></script>
+  <script src="/static/app.js"></script>
+</body>
+</html>

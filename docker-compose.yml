@@ -1,0 +1,13 @@
+services:
+  radar:
+    build: .
+    ports:
+      - "8000:8000"
+    environment:
+      DATA_MODE: ${DATA_MODE:-live}
+      WATCHLIST: ${WATCHLIST:-AAPL,TSLA,NVDA,AMD,SPY,QQQ,MSFT,META,AMZN,GOOGL}
+      REFRESH_SECONDS: ${REFRESH_SECONDS:-60}
+      MAX_POSITION_PCT: ${MAX_POSITION_PCT:-25}
+    volumes:
+      - ./data:/data
+    restart: unless-stopped

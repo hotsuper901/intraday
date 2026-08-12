@@ -1,0 +1,11 @@
+market.db
+*.db
+*.db-wal
+*.db-shm
+data/
+tests/
+__pycache__/
+*.pyc
+.venv/
+nohup.out
+*.log

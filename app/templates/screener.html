@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+{% block title %}Screener — Intraday Radar{% endblock %}
+{% block content %}
+<section class="panel">
+  <div class="panel-head">
+    <h1>Screener <span class="sub">equities · crypto · forex — find the movers that matter</span></h1>
+    <div class="filters">
+      <label>Min chg % <input type="number" id="f-min-change" step="0.1" placeholder="0.0"></label>
+      <label>Min rel vol <input type="number" id="f-min-relvol" step="0.1" placeholder="0"></label>
+      <label>Min price <input type="number" id="f-min-price" step="0.01" placeholder="0"></label>
+      <label>Max price <input type="number" id="f-max-price" step="0.01" placeholder="∞"></label>
+      <label>Direction
+        <select id="f-direction">
+          <option value="any" selected>Any</option>
+          <option value="up">Up</option>
+          <option value="down">Down</option>
+        </select>
+      </label>
+      <button class="btn small" id="preset-movers">Movers</button>
+      <button class="btn small" id="preset-all">All</button>
+    </div>
+  </div>
+  <table class="grid" id="screener-table">
+    <thead>
+      <tr>
+        <th data-sort="change_desc">Ticker</th>
+        <th>Name</th>
+        <th data-sort="change_desc" class="num">Price</th>
+        <th data-sort="change_desc" class="num">Chg %</th>
+        <th class="num">Open %</th>
+        <th data-sort="relvol" class="num">RelVol</th>
+        <th data-sort="atr" class="num">ATR %</th>
+        <th data-sort="rsi" class="num">RSI</th>
+        <th class="num">VWAP Δ%</th>
+        <th class="num">Day Vol</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody id="rows">
+      <tr><td colspan="11" class="empty">Loading…</td></tr>
+    </tbody>
+  </table>
+  <div class="panel-foot">
+    <span id="refresh-note">waiting for first refresh</span>
+    <span id="row-count"></span>
+  </div>
+</section>
+{% endblock %}
