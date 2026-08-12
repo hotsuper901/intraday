@@ -143,7 +143,7 @@ async def screener_rows() -> tuple[list[dict], int]:
             # finishes in time, mark the rest as unreachable.
             try:
                 results = await asyncio.wait_for(
-                    asyncio.gather(*coros, return_exceptions=True), timeout=9.0
+                    asyncio.gather(*coros, return_exceptions=True), timeout=8.0
                 )
             except asyncio.TimeoutError:
                 results = []

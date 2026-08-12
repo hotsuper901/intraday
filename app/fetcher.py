@@ -404,9 +404,9 @@ async def _fetch_yahoo_via_edge(client: httpx.AsyncClient, ticker: str, interval
     vercel_url = os.environ.get("VERCEL_URL", "")
     if not vercel_url:
         return None
-    # Yahoo serves only a thin window for FX on anonymous 1d requests — 5d
-    # reliably returns full bars; trim to the day below.
-    yahoo_url = YAHOO_HOSTS[0].format(ticker=ticker) + f"?range=5d&interval={interval}m"
+    # Yahoo serves only a thin window for FX on anonymous 1d requests — 2d
+    # reliably returns full bars without the 5d payload bloat.
+    yahoo_url = YAHOO_HOSTS[0].format(ticker=ticker) + f"?range=2d&interval={interval}m"
     try:
         resp = await client.get(
             f"https://{vercel_url}/api/edge-fetch",
