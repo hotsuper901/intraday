@@ -4,9 +4,11 @@ A fast, self-contained dashboard for spotting intraday trade ideas and checking
 entry risk before you click buy. Screener → ticker detail → risk check, end to
 end — across equities, crypto, and forex.
 
-- **Live data:** 5-minute OHLCV bars pulled from Yahoo's public chart endpoint
-  (no API key needed), polled in the background and stored in SQLite. Same
-  endpoint serves stocks (`AAPL`), crypto (`BTC-USD`), and forex (`EURUSD=X`).
+- **Live data:** 5-minute OHLCV bars pulled from free public endpoints (no
+  API key needed), polled in the background and stored in SQLite. Equities and
+  forex use Yahoo's chart endpoint; crypto falls back to Kraken and Coinbase
+  Exchange, which serve datacenter IPs (Vercel functions) that Yahoo, Binance,
+  and Bybit block or rate-limit.
 - **Asset-aware trading calendars:** equities use the US session (09:30–16:00
   ET), forex trades Sun 17:00 ET → Fri 17:00 ET, crypto is 24/7. The risk
   engine's timing rules adapt per symbol instead of assuming one session.
