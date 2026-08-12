@@ -205,7 +205,16 @@ async def api_screener(
     direction: str | None = None,
 ):
     params = screenlib.parse_screen_params(min_change, min_relvol, min_price, max_price, sort, direction)
-    rows, fetch_errors = await screener_rows()
+    try:
+        rows, fetch_errors = await screener_rows()
+    except Exception as e:  # noqa: BLE001 — surface unexpected failures for diagnosis
+        import traceback
+        return JSONResponse(
+            {"error": f"{type(e).__name__}: {e}", "trace": traceback.format_exc()[-1500:],
+             "rows": [], "fetch_errors": len(config.WATCHLIST),
+             "market_state": None, "data_mode": config.DATA_MODE, "refreshed_at": time.time()},
+            headers={"Cache-Control": "no-store"},
+        )
     filtered = screenlib.apply_filters(rows, params)
     state, mins = market_state()
     return JSONResponse(
