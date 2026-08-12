@@ -29,7 +29,7 @@ from pydantic import BaseModel, Field  # noqa: E402
 
 from app import config, db, indicators, risk  # noqa: E402
 from app import screener as screenlib  # noqa: E402
-from app.fetcher import ET, asset_class, fetch_demo, fetch_ticker, market_state  # noqa: E402
+from app.fetcher import ET, LAST_FETCH_ERRORS, asset_class, fetch_demo, fetch_ticker, market_state  # noqa: E402
 
 app = FastAPI(title="Intraday Radar")
 
@@ -226,15 +226,16 @@ def api_status():
     state, mins = market_state()
     return JSONResponse(
         {
-            "version": "v7",
+            "version": "v8",
             "mode": config.DATA_MODE,
             "watchlist": config.WATCHLIST,
             "market_state": state,
             "minutes_in_session": mins,
             "et_now": datetime.now(ET).isoformat(timespec="seconds"),
             "fetched_at": time.time(),
+            "fetch_diagnostics": dict(list(LAST_FETCH_ERRORS.items())[:8]),
         },
-        headers={"Cache-Control": "public, s-maxage=15"},
+        headers={"Cache-Control": "public, s-maxage=5"},
     )
 
 

@@ -33,6 +33,9 @@ BINANCE_24H_URL = "https://api.binance.com/api/v3/ticker/24hr"
 # datacenter IP. Cap concurrency across the whole process.
 _FETCH_SEM = asyncio.Semaphore(4)
 
+# Last failure per ticker, surfaced via /api/status for diagnostics.
+LAST_FETCH_ERRORS: dict[str, str] = {}
+
 
 async def _bootstrap_cookies(client: httpx.AsyncClient) -> None:
     """Yahoo occasionally demands a cookie before serving chart data. One
@@ -90,7 +93,8 @@ async def _fetch_binance(client: httpx.AsyncClient, ticker: str) -> dict | None:
             "prev_close": prev_close,
             "session_open": bars[0]["ts"],
         }
-    except (httpx.HTTPError, ValueError, IndexError, TypeError, KeyError):
+    except (httpx.HTTPError, ValueError, IndexError, TypeError, KeyError) as e:
+        LAST_FETCH_ERRORS[ticker] = f"binance:{type(e).__name__}: {e}"
         return None
 
 
@@ -123,6 +127,10 @@ async def fetch_ticker(client: httpx.AsyncClient, ticker: str) -> dict | None:
                     return _parse_chart(ticker, resp.json())
             except (httpx.HTTPError, KeyError, ValueError, IndexError, TypeError) as e:
                 last_err = e
+                LAST_FETCH_ERRORS[ticker] = f"yahoo:{type(e).__name__}: {e}"
+            except Exception as e:  # noqa: BLE001 — surface anything unexpected
+                last_err = e
+                LAST_FETCH_ERRORS[ticker] = f"yahoo:{type(e).__name__}: {e}"
             if attempt < max(0, config.FETCH_RETRIES - 1):
                 await asyncio.sleep(1.5 * (attempt + 1) + random.random())
         if asset_class(ticker) == "crypto":
