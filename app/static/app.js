@@ -204,7 +204,6 @@
   if ($("#ticker-panel")) {
     const ticker = window.location.pathname.split("/").pop();
     let tickerData = null;
-    let riskTimer = null;
 
     const renderStats = (m) => {
       $("#t-name").textContent = m.name && m.name !== m.ticker ? "— " + m.name : "";
@@ -281,8 +280,7 @@
         renderBarsTable(tickerData.bars);
         renderChart();
         startLiveSim();
-        suggestStop();
-        runRisk();
+        loadSignal();
       } catch (e) {
         stopLiveSim();
         $("#t-name").textContent = "— feed unreachable, retrying…";
@@ -290,59 +288,90 @@
       }
     }
 
-    function suggestStop() {
-      if (!tickerData) return;
-      const m = tickerData.metrics;
-      const entry = $("#r-entry");
-      if (!entry.value) entry.value = m.price.toFixed(2);
-      const atrMove = (m.atr_pct || 1.5) / 100 * (parseFloat(entry.value) || m.price);
-      $("#r-stop").value = ((parseFloat(entry.value) || m.price) - 1.5 * atrMove).toFixed(2);
-      runRisk();
+    // --- trading signal panel (multi-timeframe buy/sell prediction) -------
+    const VERDICT_CLASS = {
+      "STRONG BUY": "strong-buy", "BUY": "buy", "NEUTRAL": "neutral",
+      "SELL": "sell", "STRONG SELL": "strong-sell",
+    };
+    let signalBusy = false;
+
+    async function loadSignal() {
+      if (signalBusy) return;
+      signalBusy = true;
+      try {
+        const res = await fetch("/api/signal", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ ticker }),
+        });
+        if (!res.ok) throw new Error("http " + res.status);
+        renderSignal(await res.json());
+      } catch (e) {
+        const v = $("#signal-verdict");
+        if (v) v.innerHTML = `<span class="muted">signal unavailable (${esc(e.message)}) — retrying…</span>`;
+      } finally {
+        signalBusy = false;
+      }
     }
 
-    async function runRisk() {
-      clearTimeout(riskTimer);
-      const entry = parseFloat($("#r-entry").value);
-      const stop = parseFloat($("#r-stop").value);
-      if (!(entry > 0) || !(stop > 0)) return;
-      riskTimer = setTimeout(async () => {
-        let data;
-        try {
-          const res = await fetch("/api/risk", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              ticker,
-              entry,
-              stop,
-              account: parseFloat($("#r-account").value) || 25000,
-              risk_pct: parseFloat($("#r-risk").value) || 1,
-            }),
-          });
-          data = await res.json();
-        } catch (e) { return; }
-        const box = $("#verdict-box");
-        box.textContent = data.verdict === "GO" ? "✓ GO" : data.verdict;
-        box.className = "verdict " + data.verdict;
-        $("#reason-list").innerHTML = data.reasons.map((r) => `<li>${esc(r)}</li>`).join("");
-        $("#sizing").innerHTML = `
-          <span>units <b>${Number.isInteger(data.shares) ? data.shares : data.shares.toFixed(4)}</b></span>
-          <span>$ risk <b>$${fmtNum(data.dollar_risk)}</b></span>
-          <span>stop distance <b>${fmtNum(data.stop_dist_pct)}%</b></span>
-          ${data.capped ? `<span class="neg">capped at max position</span>` : ""}
-        `;
-      }, 250);
+    function renderSignal(s) {
+      const v = $("#signal-verdict");
+      if (v) {
+        v.className = "signal-verdict " + (VERDICT_CLASS[s.verdict] || "neutral");
+        v.innerHTML = `<span class="sv-label">${esc(s.verdict)}</span>` +
+          `<span class="sv-sub">${s.direction} · score ${s.score > 0 ? "+" : ""}${s.score}</span>`;
+      }
+      const cb = $("#conf-bar");
+      if (cb) cb.style.width = (s.confidence || 0) + "%";
+      const cl = $("#conf-label");
+      if (cl) cl.textContent = `${s.confidence}% confidence${s.confluence ? " · 1m+5m confluence" : ""}`;
+      const tfs = $("#sig-tfs");
+      if (tfs) {
+        tfs.innerHTML = ["1m", "5m"].map((tf) => {
+          const a = s.timeframes[tf] || {};
+          const c = VERDICT_CLASS[a.verdict] || "neutral";
+          const ind = a.indicators || {};
+          return `<div class="sig-tf">
+            <span class="sig-tf-label">${tf}</span>
+            <span class="sig-tf-badge ${c}">${esc(a.verdict || "—")}</span>
+            <span class="sig-tf-score muted">${a.score > 0 ? "+" : ""}${a.score}</span>
+            <span class="sig-tf-detail muted">EMA ${ind.ema9 != null && ind.ema21 != null ? (ind.ema9 >= ind.ema21 ? "bullish" : "bearish") : "—"} · RSI ${ind.rsi != null ? ind.rsi : "—"} · Stoch ${ind.stoch_k != null ? ind.stoch_k : "—"}${ind.pattern ? " · " + ind.pattern : ""}</span>
+          </div>`;
+        }).join("");
+      }
+      const p = s.prediction || {};
+      const pred = $("#sig-prediction");
+      if (pred) {
+        pred.innerHTML = p.entry == null ? "" : `
+          <div class="pred-item"><span class="k">Entry</span><span class="v">${fmtNum(p.entry)}</span></div>
+          <div class="pred-item ${p.target != null && p.target > p.entry ? "pos" : p.target != null ? "neg" : ""}"><span class="k">Target</span><span class="v">${p.target != null ? fmtNum(p.target) : "—"}</span></div>
+          <div class="pred-item neg"><span class="k">Stop</span><span class="v">${p.stop != null ? fmtNum(p.stop) : "—"}</span></div>
+          <div class="pred-item"><span class="k">R:R</span><span class="v">${p.rr != null ? "1 : " + p.rr : "—"}</span></div>`;
+      }
+      const rs = $("#signal-reasons");
+      if (rs) rs.innerHTML = (s.reasons || []).map((r) => `<li>${esc(r)}</li>`).join("");
+      const chips = $("#sig-chips");
+      if (chips) {
+        const i5 = (s.timeframes["5m"] || {}).indicators || {};
+        const items = [];
+        if (i5.rsi != null) items.push(`RSI ${i5.rsi}`);
+        if (i5.macd_hist != null) items.push(`MACD ${i5.macd_hist > 0 ? "+" : i5.macd_hist < 0 ? "−" : "0"}`);
+        if (i5.stoch_k != null) items.push(`Stoch ${i5.stoch_k}/${i5.stoch_d != null ? i5.stoch_d : ""}`);
+        if (i5.ema9 != null && i5.ema21 != null) items.push(i5.ema9 >= i5.ema21 ? "EMA9 > EMA21" : "EMA9 < EMA21");
+        if (i5.vwap != null) items.push("VWAP " + fmtNum(i5.vwap));
+        if (i5.bb_upper != null) items.push(`BB ${fmtNum(i5.bb_lower)}–${fmtNum(i5.bb_upper)}`);
+        if (i5.pattern) items.push(i5.pattern);
+        chips.innerHTML = items.map((x) => `<span class="chip">${esc(x)}</span>`).join("");
+      }
     }
 
-    $("#r-suggest").addEventListener("click", suggestStop);
-    for (const id of ["#r-account", "#r-risk", "#r-entry", "#r-stop"]) {
-      $(id).addEventListener("input", runRisk);
-    }
+    $("#s-refresh").addEventListener("click", loadSignal);
 
     window.addEventListener("resize", renderChart);
     loadTicker();
     loadTape();
     setInterval(loadTicker, 10000);
     setInterval(loadTape, 20000);
+    setInterval(loadSignal, 30000);
   }
 })();

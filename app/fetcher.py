@@ -78,14 +78,14 @@ def _trim_24h(bars: list[dict]) -> list[dict] | None:
     return bars or None
 
 
-async def _fetch_kraken(client: httpx.AsyncClient, ticker: str) -> dict | None:
+async def _fetch_kraken(client: httpx.AsyncClient, ticker: str, interval: int = 5) -> dict | None:
     """Crypto OHLCV from Kraken's public API (no key, US-friendly)."""
     pair = KRAKEN_PAIRS.get(ticker.upper())
     if not pair:
         return None
     try:
         resp = await client.get(
-            KRAKEN_OHLC_URL, params={"pair": pair, "interval": 5}, timeout=config.HTTP_TIMEOUT
+            KRAKEN_OHLC_URL, params={"pair": pair, "interval": interval}, timeout=config.HTTP_TIMEOUT
         )
         resp.raise_for_status()
         data = resp.json()
@@ -112,7 +112,7 @@ async def _fetch_kraken(client: httpx.AsyncClient, ticker: str) -> dict | None:
             }
             for r in rows
         ]
-        bars = _trim_24h(bars)
+        bars = bars[-CRYPTO_WINDOW if interval >= 5 else 1440:]
         if not bars:
             return None
         return {
@@ -126,13 +126,13 @@ async def _fetch_kraken(client: httpx.AsyncClient, ticker: str) -> dict | None:
         return None
 
 
-async def _fetch_coinbase(client: httpx.AsyncClient, ticker: str) -> dict | None:
+async def _fetch_coinbase(client: httpx.AsyncClient, ticker: str, interval: int = 5) -> dict | None:
     """Crypto OHLCV from Coinbase Exchange's public API (no key, US-based)."""
     pair = ticker.upper()
     try:
         resp = await client.get(
             COINBASE_CANDLES_URL.format(pair=pair),
-            params={"granularity": 300},
+            params={"granularity": interval * 60},
             headers={"User-Agent": config.USER_AGENT},
             timeout=config.HTTP_TIMEOUT,
         )
@@ -150,7 +150,7 @@ async def _fetch_coinbase(client: httpx.AsyncClient, ticker: str) -> dict | None
             }
             for r in reversed(rows)
         ]
-        bars = _trim_24h(bars)
+        bars = bars[-CRYPTO_WINDOW if interval >= 5 else 1440:]
         if not bars:
             return None
         return {
@@ -164,14 +164,14 @@ async def _fetch_coinbase(client: httpx.AsyncClient, ticker: str) -> dict | None
         return None
 
 
-async def _fetch_kucoin(client: httpx.AsyncClient, ticker: str) -> dict | None:
+async def _fetch_kucoin(client: httpx.AsyncClient, ticker: str, interval: int = 5) -> dict | None:
     """Crypto OHLCV from KuCoin's public API (no key). Third fallback — covers
     symbols missing from Kraken/Coinbase like BNB."""
     sym = ticker.upper().split("-")[0] + "-USDT"
     try:
         resp = await client.get(
             KUCOIN_CANDLES_URL,
-            params={"type": "5min", "symbol": sym},
+            params={"type": f"{interval}min", "symbol": sym},
             headers={"User-Agent": config.USER_AGENT},
             timeout=config.HTTP_TIMEOUT,
         )
@@ -388,12 +388,12 @@ async def fetch_cnbc_quote(client: httpx.AsyncClient, ticker: str) -> dict | Non
         return None
 
 
-async def _fetch_yahoo_via_jina(client: httpx.AsyncClient, ticker: str) -> dict | None:
+async def _fetch_yahoo_via_jina(client: httpx.AsyncClient, ticker: str, interval: int = 5) -> dict | None:
     """Yahoo chart data through Jina AI's reader proxy. Jina fetches from
     Google Cloud IPs that Yahoo does not rate-limit, so this unblocks real
     candles for equities and FX on serverless platforms. Free tier: ~20
     requests/minute — fine with CDN caching on top."""
-    yahoo_url = YAHOO_HOSTS[0].format(ticker=ticker) + "?range=1d&interval=5m"
+    yahoo_url = YAHOO_HOSTS[0].format(ticker=ticker) + f"?range=1d&interval={interval}m"
     try:
         resp = await client.get(
             JINA_BASE + urllib.parse.quote(yahoo_url, safe=""),
@@ -504,10 +504,10 @@ async def _fetch_nasdaq_series(client: httpx.AsyncClient, ticker: str) -> dict |
         return None
 
 
-async def fetch_ticker(client: httpx.AsyncClient, ticker: str) -> dict | None:
+async def fetch_ticker(client: httpx.AsyncClient, ticker: str, interval: int = 5) -> dict | None:
     """Returns {'bars': [...], 'name': str, 'prev_close': float, 'session_open': int}
-    or None on any failure. Retries with backoff, rotates hosts, bootstraps
-    cookies when rate-limited, and falls back to Binance for crypto."""
+    or None on any failure. Interval in minutes (1 or 5). Retries with backoff,
+    rotates hosts, then falls through a datacenter-friendly source cascade."""
     async with _FETCH_SEM:
         if config.FINNHUB_KEY:
             finnhub_data = await _fetch_finnhub(client, ticker)
@@ -519,7 +519,7 @@ async def fetch_ticker(client: httpx.AsyncClient, ticker: str) -> dict | None:
             try:
                 resp = await client.get(
                     url,
-                    params={"range": "1d", "interval": "5m"},
+                    params={"range": "1d", "interval": f"{interval}m"},
                     headers={"User-Agent": config.USER_AGENT},
                     timeout=config.HTTP_TIMEOUT,
                 )
@@ -545,7 +545,7 @@ async def fetch_ticker(client: httpx.AsyncClient, ticker: str) -> dict | None:
                 await asyncio.sleep(1.5 * (attempt + 1) + random.random())
         if asset_class(ticker) == "crypto":
             for src in (_fetch_kraken, _fetch_coinbase, _fetch_kucoin):
-                data = await src(client, ticker)
+                data = await src(client, ticker, interval)
                 if data:
                     return data
         else:
@@ -554,7 +554,7 @@ async def fetch_ticker(client: httpx.AsyncClient, ticker: str) -> dict | None:
             # stay under its free-tier rate limit.
             try:
                 if asset_class(ticker) == "fx":
-                    via_jina = await _fetch_yahoo_via_jina(client, ticker)
+                    via_jina = await _fetch_yahoo_via_jina(client, ticker, interval)
                     if via_jina:
                         return via_jina
                 series = await _fetch_nasdaq_series(client, ticker)

@@ -29,6 +29,7 @@ from pydantic import BaseModel, Field  # noqa: E402
 
 from app import config, db, indicators, risk  # noqa: E402
 from app import screener as screenlib  # noqa: E402
+from app import signals  # noqa: E402
 from app.fetcher import (  # noqa: E402
     ET,
     LAST_FETCH_ERRORS,
@@ -46,14 +47,15 @@ app = FastAPI(title="Intraday Radar")
 # --------------------------------------------------------------------------
 # On-demand fetch layer with a per-warm-instance TTL cache
 # --------------------------------------------------------------------------
-_INSTANCE_CACHE: dict[str, tuple[float, list, dict | None, str]] = {}
+_INSTANCE_CACHE: dict[tuple[str, int], tuple[float, list, dict | None, str]] = {}
 _TTL_SECONDS = 25.0
 
 
-async def bars_for(ticker: str, client: httpx.AsyncClient) -> tuple[list, dict | None, str]:
+async def bars_for(ticker: str, client: httpx.AsyncClient, interval: int = 5) -> tuple[list, dict | None, str]:
     """Bars, meta, and source ('live' | 'demo' | 'none') for one symbol."""
+    key = (ticker, interval)
     now = time.time()
-    hit = _INSTANCE_CACHE.get(ticker)
+    hit = _INSTANCE_CACHE.get(key)
     if hit and now - hit[0] < _TTL_SECONDS:
         return hit[1], hit[2], hit[3]
 
@@ -63,12 +65,12 @@ async def bars_for(ticker: str, client: httpx.AsyncClient) -> tuple[list, dict |
         db.init_db()
         data = await asyncio.to_thread(fetch_demo, ticker)
     else:
-        data = await fetch_ticker(client, ticker)
+        data = await fetch_ticker(client, ticker, interval)
         if not data and config.LIVE_FALLBACK_TO_DEMO:
             source = "demo"
             db.init_db()
             data = await asyncio.to_thread(fetch_demo, ticker)
-        if not data and config.SERVERLESS and asset_class(ticker) == "fx":
+        if not data and config.SERVERLESS and asset_class(ticker) == "fx" and interval == 5:
             # No keyless FX candle source serves datacenter IPs (Yahoo/Binance/
             # Bybit/Stooq/Dukascopy all refuse). Fill FX with clearly-labeled
             # demo bars so every symbol has candles on Vercel.
@@ -81,11 +83,11 @@ async def bars_for(ticker: str, client: httpx.AsyncClient) -> tuple[list, dict |
             q = await fetch_finnhub_quote(client, ticker) or await fetch_cnbc_quote(client, ticker)
             if q:
                 meta = {"name": q["name"], "quote": q}
-                _INSTANCE_CACHE[ticker] = (now, [], meta, "quote")
+                _INSTANCE_CACHE[key] = (now, [], meta, "quote")
                 return [], meta, "quote"
 
     if not data:
-        _INSTANCE_CACHE[ticker] = (now, [], None, "none")
+        _INSTANCE_CACHE[key] = (now, [], None, "none")
         return [], None, "none"
     bars = data["bars"]
     meta = {
@@ -93,7 +95,7 @@ async def bars_for(ticker: str, client: httpx.AsyncClient) -> tuple[list, dict |
         "prev_close": data["prev_close"],
         "session_open": data["session_open"],
     }
-    _INSTANCE_CACHE[ticker] = (now, bars, meta, source)
+    _INSTANCE_CACHE[key] = (now, bars, meta, source)
     return bars, meta, source
 
 
@@ -219,6 +221,46 @@ async def api_ticker(symbol: str = Query(..., min_length=1), bars_limit: int = Q
         },
         headers=_CACHE_30S,
     )
+
+
+class SignalRequest(BaseModel):
+    ticker: str
+
+
+@app.post("/api/signal")
+async def api_signal(req: SignalRequest):
+    """Multi-timeframe buy/sell signal: 1m + 5m indicator confluence with a
+    price prediction (entry, target, stop, R:R)."""
+    t = req.ticker.upper().strip()
+    async with httpx.AsyncClient() as client:
+        if config.DATA_MODE == "demo":
+            # Demo generator produces 5m bars only — analyze those on both slots.
+            bars_5m, meta, source = await bars_for(t, client, interval=5)
+            bars_1m = bars_5m
+            degraded = True
+        else:
+            bars_1m, meta, source = await bars_for(t, client, interval=1)
+            if len(bars_1m) < 26:
+                # Fall back: analyze the 5m series on both timeframes, flagged.
+                bars_5m, meta, source = await bars_for(t, client, interval=5)
+                bars_1m = bars_5m
+                degraded = True
+            else:
+                bars_5m = signals.resample(bars_1m, 5)
+                degraded = False
+    if len(bars_1m) < 26:
+        raise HTTPException(status_code=404, detail=f"not enough data for {t}")
+    result = signals.assess(bars_1m, bars_5m)
+    result["ticker"] = t
+    result["name"] = (meta or {}).get("name") or t
+    result["source"] = source
+    result["asset"] = asset_class(t)
+    result["bars_1m"] = len(bars_1m)
+    result["bars_5m"] = len(bars_5m)
+    result["degraded"] = degraded
+    if degraded:
+        result["reasons"].append("1-minute data unavailable — 5m used for both timeframes")
+    return result
 
 
 class RiskRequest(BaseModel):

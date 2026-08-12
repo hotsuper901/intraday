@@ -8,13 +8,14 @@ from contextlib import asynccontextmanager
 from datetime import datetime
 from pathlib import Path
 
+import httpx
 from fastapi import FastAPI, HTTPException, Query, Request
 from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel, Field
 
-from . import config, db, fetcher, indicators, risk, screener
+from . import config, db, fetcher, indicators, risk, screener, signals
 from .fetcher import ET
 
 log = logging.getLogger("main")
@@ -147,6 +148,47 @@ def api_ticker(ticker: str, bars_limit: int = Query(default=80, le=300)):
         raise HTTPException(status_code=404, detail=f"no data for {t} — add it to WATCHLIST")
     m = _metrics_for(t, meta, bars)
     return {"metrics": m, "bars": bars, "name": meta.get("name") if meta else t}
+
+
+class SignalRequest(BaseModel):
+    ticker: str
+
+
+@app.post("/api/signal")
+async def api_signal(req: SignalRequest):
+    """Multi-timeframe buy/sell signal: 1m + 5m confluence with prediction."""
+    t = req.ticker.upper().strip()
+    async with httpx.AsyncClient() as client:
+        data = None
+        degraded = True
+        if config.DATA_MODE == "demo":
+            db.init_db()
+            data = await asyncio.to_thread(fetcher.fetch_demo, t)
+            bars_1m = data["bars"] if data else []
+            bars_5m = bars_1m
+        else:
+            data = await fetcher.fetch_ticker(client, t, interval=1)
+            if data:
+                bars_1m = data["bars"]
+                bars_5m = signals.resample(bars_1m, 5)
+                degraded = False
+            else:
+                data = await fetcher.fetch_ticker(client, t, interval=5)
+                if data:
+                    bars_1m = bars_5m = data["bars"]
+                else:
+                    bars_1m = bars_5m = db.bars_for(t, limit=300)
+    if len(bars_1m) < 26:
+        raise HTTPException(status_code=404, detail=f"not enough data for {t}")
+    result = signals.assess(bars_1m, bars_5m)
+    result["ticker"] = t
+    result["name"] = (data or {}).get("name") or t
+    result["source"] = config.DATA_MODE
+    result["asset"] = fetcher.asset_class(t)
+    result["bars_1m"] = len(bars_1m)
+    result["bars_5m"] = len(bars_5m)
+    result["degraded"] = degraded
+    return result
 
 
 class RiskRequest(BaseModel):

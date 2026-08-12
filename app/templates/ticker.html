@@ -22,19 +22,21 @@
 </section>
 
 <div class="two-col">
-  <section class="panel">
-    <div class="panel-head"><h1>Entry risk check</h1></div>
-    <div class="risk-form">
-      <label>Account size $ <input type="number" id="r-account" value="25000" step="500"></label>
-      <label>Risk per trade % <input type="number" id="r-risk" value="1" step="0.1" min="0.1" max="10"></label>
-      <label>Entry $ <input type="number" id="r-entry" step="0.01"></label>
-      <label>Stop $ <input type="number" id="r-stop" step="0.01"></label>
-      <button class="btn" id="r-suggest">Suggest stop (1.5×ATR)</button>
-    </div>
-    <div class="verdict" id="verdict-box"><span class="muted">set a stop to run the check</span></div>
-    <ul class="reasons" id="reason-list"></ul>
-    <div class="sizing" id="sizing"></div>
-  </section>
+      <section class="panel">
+        <div class="panel-head">
+          <h1>Trading signal <span class="sub">1m + 5m multi-indicator confluence · prediction</span></h1>
+          <button class="btn" id="s-refresh">⟳ Analyze</button>
+        </div>
+        <div class="signal-verdict neutral" id="signal-verdict"><span class="muted">analyzing…</span></div>
+        <div class="conf-wrap">
+          <div class="conf-track"><div class="conf-bar" id="conf-bar"></div></div>
+          <span class="conf-label" id="conf-label"></span>
+        </div>
+        <div class="sig-tfs" id="sig-tfs"></div>
+        <div class="prediction" id="sig-prediction"></div>
+        <ul class="reasons" id="signal-reasons"></ul>
+        <div class="sig-chips" id="sig-chips"></div>
+      </section>
 
   <section class="panel">
     <div class="panel-head"><h1>Last bars</h1></div>
