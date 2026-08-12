@@ -193,7 +193,9 @@
     }
 
     loadScreener();
-    setInterval(loadScreener, 20000);
+    loadTape();
+    setInterval(loadScreener, 12000);
+    setInterval(loadTape, 15000);
   }
 
   // ======================================================================
@@ -237,19 +239,40 @@
         </tr>`).join("");
     };
 
+    const readoutCb = (txt) => { $("#chart-readout").textContent = txt || "tap a candle to inspect"; };
+
     const renderChart = () => {
       if (!tickerData) return;
-      drawCandles(
-        $("#chart"), tickerData.bars.slice(-78),
-        tickerData.metrics.vwap,
-        (txt) => { $("#chart-readout").textContent = txt || "tap a candle to inspect"; }
-      );
+      drawCandles($("#chart"), tickerData.bars.slice(-78), tickerData.metrics.vwap, readoutCb);
     };
+
+    // --- live forming candle: tick the last bar between real fetches -------
+    let liveTimer = null;
+    function stopLiveSim() {
+      if (liveTimer) { clearInterval(liveTimer); liveTimer = null; }
+    }
+    function startLiveSim() {
+      stopLiveSim();
+      liveTimer = setInterval(() => {
+        if (!tickerData || !tickerData.bars.length) return;
+        const bars = tickerData.bars;
+        const last = bars[bars.length - 1];
+        // Nudge the forming candle's close inside its own high/low range.
+        const fake = {
+          ts: last.ts, open: last.open, high: last.high, low: last.low,
+          volume: last.volume,
+          close: Math.min(last.high, Math.max(last.low,
+            last.close + (last.high - last.low) * 0.14 * (Math.random() - 0.5))),
+        };
+        drawCandles($("#chart"), bars.slice(-78, -1).concat([fake]), tickerData.metrics.vwap, readoutCb);
+      }, 900);
+    }
 
     async function loadTicker() {
       try {
         const res = await fetch(`/api/ticker/${ticker}?bars_limit=160`);
         if (!res.ok) {
+          stopLiveSim();
           $("#t-name").textContent = "— no data. Add this symbol to WATCHLIST.";
           setTimeout(loadTicker, 5000);
           return;
@@ -258,9 +281,11 @@
         renderStats(tickerData.metrics);
         renderBarsTable(tickerData.bars);
         renderChart();
+        startLiveSim();
         suggestStop();
         runRisk();
       } catch (e) {
+        stopLiveSim();
         $("#t-name").textContent = "— feed unreachable, retrying…";
         setTimeout(loadTicker, 5000);
       }
@@ -318,7 +343,7 @@
     window.addEventListener("resize", renderChart);
     loadTicker();
     loadTape();
-    setInterval(loadTicker, 30000);
-    setInterval(loadTape, 60000);
+    setInterval(loadTicker, 10000);
+    setInterval(loadTape, 20000);
   }
 })();
