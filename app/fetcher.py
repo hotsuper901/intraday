@@ -60,7 +60,7 @@ KRAKEN_PAIRS = {
 
 # Yahoo rate-limits hard when we fire dozens of parallel requests from a
 # datacenter IP. Cap concurrency across the whole process.
-_FETCH_SEM = asyncio.Semaphore(4)
+_FETCH_SEM = asyncio.Semaphore(8)
 
 # Last failure per ticker, surfaced via /api/status for diagnostics.
 LAST_FETCH_ERRORS: dict[str, str] = {}
