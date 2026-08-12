@@ -1,3 +1,8 @@
+import os
+import sys
+
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
 import httpx
 from fastapi import APIRouter, FastAPI, HTTPException
 from pydantic import BaseModel, Field

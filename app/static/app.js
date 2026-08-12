@@ -41,6 +41,37 @@
   });
   const fmtTs = (ts) => ts ? etMinFmt.format(new Date(ts * 1000)) : "—";
 
+  // --- live ticker tape + breadth strip (whole watchlist, unfiltered) ----
+  function tapeItem(r) {
+    return `<span class="tape-item"><span class="sym">${esc(r.ticker)}</span>` +
+      `<span class="${cls(r.change_pct)}">${fmtNum(r.price)} ${signed(r.change_pct)}%</span></span>`;
+  }
+
+  function renderBreadth(rows) {
+    const el = $("#breadth");
+    if (!el) return;
+    const up = rows.filter((r) => (r.change_pct || 0) > 0).length;
+    const down = rows.filter((r) => (r.change_pct || 0) < 0).length;
+    const hot = [...rows].sort((a, b) => Math.abs(b.change_pct || 0) - Math.abs(a.change_pct || 0))[0];
+    el.innerHTML =
+      `<span class="chip pos">▲ ${up} advancers</span>` +
+      `<span class="chip neg">▼ ${down} decliners</span>` +
+      (hot ? `<span class="chip">hottest: <b>${esc(hot.ticker)}</b> ${signed(hot.change_pct)}%</span>` : "");
+  }
+
+  async function loadTape() {
+    try {
+      const res = await fetch("/api/screener" + (bust ? `?_=${bust}` : ""));
+      const data = await res.json();
+      const track = $("#tape-track");
+      if (track && data.rows && data.rows.length) {
+        const items = data.rows.map(tapeItem).join("");
+        track.innerHTML = items + items; // duplicated for a seamless loop
+      }
+      renderBreadth(data.rows || []);
+    } catch (e) {}
+  }
+
   // ======================================================================
   // Screener page
   // ======================================================================
@@ -62,13 +93,21 @@
       const qs = new URLSearchParams(Object.entries(f).filter(([, v]) => v !== "" && v != null));
       let data;
       try {
-        data = await (await fetch("/api/screener?" + qs)).json();
+        const res = await fetch("/api/screener?" + qs);
+        if (!res.ok) throw new Error("http " + res.status);
+        data = await res.json();
       } catch (e) {
+        const body = $("#rows");
+        if (body) body.innerHTML = `<tr><td colspan="11" class="empty">data feed unreachable (${esc(e.message)}) — retrying in 5s…</td></tr>`;
+        setTimeout(loadScreener, 5000);
         return;
       }
       const body = $("#rows");
       if (!data.rows.length) {
-        body.innerHTML = `<tr><td colspan="11" class="empty">no tickers match — loosen the filters</td></tr>`;
+        const msg = data.fetch_errors > 0
+          ? "data source unavailable right now (rate-limited or down) — hit Refresh, or set DATA_MODE=demo"
+          : "no tickers match — loosen the filters";
+        body.innerHTML = `<tr><td colspan="11" class="empty">${esc(msg)}</td></tr>`;
       } else {
         body.innerHTML = data.rows.map((r) => `
           <tr>
@@ -89,7 +128,8 @@
       const stamp = data.refreshed_at
         ? "bars refreshed " + new Date(data.refreshed_at * 1000).toLocaleTimeString()
         : "waiting for first refresh";
-      if (note) note.textContent = stamp + " · " + (data.market_state || "").toUpperCase();
+      const degraded = data.fetch_errors > 0 ? ` · ⚠ ${data.fetch_errors} symbols unreachable` : "";
+      if (note) note.textContent = stamp + degraded + " · " + (data.market_state || "").toUpperCase();
       const rc = $("#row-count");
       if (rc) rc.textContent = data.rows.length + " symbols";
       const sp = $("#state-pill");
@@ -174,6 +214,7 @@
         const res = await fetch(`/api/ticker/${ticker}?bars_limit=160`);
         if (!res.ok) {
           $("#t-name").textContent = "— no data. Add this symbol to WATCHLIST.";
+          setTimeout(loadTicker, 5000);
           return;
         }
         tickerData = await res.json();
@@ -182,7 +223,10 @@
         renderChart();
         suggestStop();
         runRisk();
-      } catch (e) {}
+      } catch (e) {
+        $("#t-name").textContent = "— feed unreachable, retrying…";
+        setTimeout(loadTicker, 5000);
+      }
     }
 
     function suggestStop() {
@@ -234,7 +278,10 @@
       $(id).addEventListener("input", runRisk);
     }
 
+    window.addEventListener("resize", renderChart);
     loadTicker();
+    loadTape();
     setInterval(loadTicker, 30000);
+    setInterval(loadTape, 60000);
   }
 })();

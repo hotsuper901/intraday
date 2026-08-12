@@ -20,6 +20,7 @@
       <button class="btn" id="refresh-btn">⟳ Refresh</button>
     </div>
   </header>
+  <div class="tape"><div class="tape-track" id="tape-track"></div></div>
   <main>
     <section class="panel">
       <div class="panel-head">
@@ -40,6 +41,8 @@
           <button class="btn small" id="preset-all">All</button>
         </div>
       </div>
+      <div class="breadth" id="breadth"></div>
+      <div class="table-scroll">
       <table class="grid" id="screener-table">
         <thead>
           <tr>
@@ -60,6 +63,7 @@
           <tr><td colspan="11" class="empty">Loading…</td></tr>
         </tbody>
       </table>
+      </div>
       <div class="panel-foot">
         <span id="refresh-note">waiting for first fetch</span>
         <span id="row-count"></span>

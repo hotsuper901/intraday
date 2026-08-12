@@ -240,3 +240,78 @@ a:hover { color: #67e8f9; }
   font-size: 13.5px;
 }
 .site-foot .sep { margin: 0 9px; opacity: .5; }
+
+/* ============================================================
+   Ticker tape + breadth + responsive
+   ============================================================ */
+.tape {
+  overflow: hidden; white-space: nowrap;
+  border-bottom: 1px solid var(--line);
+  background: linear-gradient(180deg, rgba(10, 16, 29, 0.95), rgba(8, 13, 24, 0.9));
+  position: relative;
+}
+.tape::before, .tape::after {
+  content: ""; position: absolute; top: 0; bottom: 0; width: 60px; z-index: 2; pointer-events: none;
+}
+.tape::before { left: 0; background: linear-gradient(90deg, #05080f, transparent); }
+.tape::after { right: 0; background: linear-gradient(-90deg, #05080f, transparent); }
+.tape-track {
+  display: inline-flex; gap: 28px; padding: 8px 14px;
+  animation: tapeScroll 45s linear infinite; will-change: transform;
+}
+.tape:hover .tape-track { animation-play-state: paused; }
+.tape-item { font-family: var(--mono); font-size: 12px; }
+.tape-item .sym { color: var(--muted); margin-right: 7px; font-weight: 700; }
+
+@keyframes tapeScroll {
+  from { transform: translateX(0); }
+  to { transform: translateX(-50%); }
+}
+
+.breadth { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; }
+.chip {
+  font-family: var(--mono); font-size: 11.5px; padding: 4px 11px; border-radius: 999px;
+  background: var(--card); border: 1px solid var(--line); color: var(--muted);
+}
+.chip b { color: var(--text); }
+.chip.pos { color: var(--green); border-color: rgba(52, 211, 153, 0.3); }
+.chip.neg { color: var(--red); border-color: rgba(251, 113, 133, 0.3); }
+
+.table-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+.table-scroll .grid { min-width: 880px; }
+
+/* ---------- phones / small screens ---------- */
+@media (max-width: 760px) {
+  main { padding: 12px 12px 80px; }
+  .topbar { padding: 10px 14px; gap: 10px; }
+  .brand { font-size: 15px; gap: 8px; }
+  .brand .logo { width: 26px; height: 26px; font-size: 13px; border-radius: 7px; }
+  .byline { display: none; }
+  .topbar-right { gap: 6px; margin-left: auto; }
+  .clock { display: none; }
+  .pill { font-size: 9.5px; padding: 3px 9px; }
+  .btn { padding: 7px 12px; font-size: 12px; }
+  .panel { padding: 14px 12px; border-radius: 13px; margin-bottom: 12px; }
+  .panel-head { gap: 10px; }
+  .panel-head h1 { font-size: 15px; }
+  .filters { gap: 8px; width: 100%; }
+  .filters label { flex: 1 1 42%; }
+  .filters input, .filters select { width: 100%; }
+  .filters .btn-holder { display: flex; gap: 8px; }
+  .breadth { gap: 6px; }
+  .chip { font-size: 10.5px; padding: 3px 9px; }
+  .tape-track { gap: 20px; padding: 7px 12px; animation-duration: 30s; }
+  .tape-item { font-size: 11px; }
+  .big-price { gap: 10px; }
+  .big-price #t-price { font-size: 27px; }
+  .stat-cards { grid-template-columns: repeat(2, 1fr); min-width: 0; gap: 8px; }
+  .card { padding: 8px 10px; }
+  .card .v { font-size: 13.5px; }
+  .two-col { grid-template-columns: 1fr; gap: 12px; }
+  .risk-form { gap: 8px; }
+  .risk-form label { flex: 1 1 42%; }
+  .risk-form input { width: 100%; }
+  .verdict { font-size: 14px; padding: 11px 13px; }
+  .sizing { gap: 12px; font-size: 12px; }
+  .crumbs { font-size: 12px; }
+}

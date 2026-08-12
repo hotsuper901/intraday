@@ -42,6 +42,37 @@
     }
   }
 
+  // --- live ticker tape + breadth strip (whole watchlist, unfiltered) ----
+  function tapeItem(r) {
+    return `<span class="tape-item"><span class="sym">${esc(r.ticker)}</span>` +
+      `<span class="${cls(r.change_pct)}">${fmtNum(r.price)} ${signed(r.change_pct)}%</span></span>`;
+  }
+
+  function renderBreadth(rows) {
+    const el = $("#breadth");
+    if (!el) return;
+    const up = rows.filter((r) => (r.change_pct || 0) > 0).length;
+    const down = rows.filter((r) => (r.change_pct || 0) < 0).length;
+    const hot = [...rows].sort((a, b) => Math.abs(b.change_pct || 0) - Math.abs(a.change_pct || 0))[0];
+    el.innerHTML =
+      `<span class="chip pos">▲ ${up} advancers</span>` +
+      `<span class="chip neg">▼ ${down} decliners</span>` +
+      (hot ? `<span class="chip">hottest: <b>${esc(hot.ticker)}</b> ${signed(hot.change_pct)}%</span>` : "");
+  }
+
+  async function loadTape() {
+    try {
+      const res = await fetch("/api/screener" + (bust ? `?_=${bust}` : ""));
+      const data = await res.json();
+      const track = $("#tape-track");
+      if (track && data.rows && data.rows.length) {
+        const items = data.rows.map(tapeItem).join("");
+        track.innerHTML = items + items; // duplicated for a seamless loop
+      }
+      renderBreadth(data.rows || []);
+    } catch (e) {}
+  }
+
   // --- refresh button: cache-busting re-fetch (no background worker here) --
   let bust = 0;
   const rb = $("#refresh-btn");
@@ -76,8 +107,15 @@
       if (bust) qs.set("_", bust);
       let data;
       try {
-        data = await (await fetch("/api/screener?" + qs)).json();
-      } catch (e) { return; }
+        const res = await fetch("/api/screener?" + qs);
+        if (!res.ok) throw new Error("http " + res.status);
+        data = await res.json();
+      } catch (e) {
+        const body = $("#rows");
+        if (body) body.innerHTML = `<tr><td colspan="11" class="empty">data feed unreachable (${esc(e.message)}) — retrying in 5s…</td></tr>`;
+        setTimeout(loadScreener, 5000);
+        return;
+      }
       const body = $("#rows");
       if (!data.rows.length) {
         const msg = data.fetch_errors > 0
@@ -104,7 +142,8 @@
       const stamp = data.refreshed_at
         ? "fetched " + new Date(data.refreshed_at * 1000).toLocaleTimeString()
         : "waiting for first fetch";
-      if (note) note.textContent = stamp + " · " + (data.market_state || "").toUpperCase();
+      const degraded = data.fetch_errors > 0 ? ` · ⚠ ${data.fetch_errors} symbols unreachable` : "";
+      if (note) note.textContent = stamp + degraded + " · " + (data.market_state || "").toUpperCase();
       const rc = $("#row-count");
       if (rc) rc.textContent = data.rows.length + " symbols";
       setPills(data);
@@ -128,7 +167,9 @@
       th.addEventListener("click", () => { sort = th.dataset.sort; loadScreener(); }));
 
     loadScreener();
+    loadTape();
     setInterval(loadScreener, 20000);
+    setInterval(loadTape, 30000);
   }
 
   // ======================================================================
@@ -189,6 +230,7 @@
         const res = await fetch(url);
         if (!res.ok) {
           $("#t-name").textContent = "— no data. Add this symbol to WATCHLIST.";
+          setTimeout(loadTicker, 5000);
           return;
         }
         tickerData = await res.json();
@@ -201,7 +243,10 @@
         setPills(tickerData);
         suggestStop();
         runRisk();
-      } catch (e) {}
+      } catch (e) {
+        $("#t-name").textContent = "— feed unreachable, retrying…";
+        setTimeout(loadTicker, 5000);
+      }
     }
 
     function suggestStop() {
@@ -249,12 +294,15 @@
     }
 
     window.__loadPage = loadTicker;
+    window.addEventListener("resize", renderChart);
     $("#r-suggest").addEventListener("click", suggestStop);
     for (const id of ["#r-account", "#r-risk", "#r-entry", "#r-stop"]) {
       $(id).addEventListener("input", runRisk);
     }
 
     loadTicker();
+    loadTape();
     setInterval(loadTicker, 30000);
+    setInterval(loadTape, 60000);
   }
 })();

@@ -23,9 +23,13 @@ DB_PATH: str = os.getenv("DB_PATH", "market.db")
 DATA_MODE: str = os.getenv("DATA_MODE", "live").lower()  # "live" | "demo"
 # When live fetching fails, optionally substitute demo bars for that ticker.
 LIVE_FALLBACK_TO_DEMO: bool = os.getenv("LIVE_FALLBACK_TO_DEMO", "0") == "1"
+# Serverless (Vercel sets VERCEL=1): functions have a ~10s budget, so keep the
+# fetch plan short — one retry, 6s timeouts. The dedicated poller uses more.
+SERVERLESS: bool = os.getenv("VERCEL", "0") == "1"
 MAX_POSITION_PCT: float = float(os.getenv("MAX_POSITION_PCT", "25"))
 MAX_BARS_PER_TICKER: int = 1200
-HTTP_TIMEOUT: float = 10.0
+HTTP_TIMEOUT: float = float(os.getenv("HTTP_TIMEOUT", "6" if SERVERLESS else "10"))
+FETCH_RETRIES: int = int(os.getenv("FETCH_RETRIES", "1" if SERVERLESS else "3"))
 USER_AGENT: str = (
     "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 "
     "(KHTML, like Gecko) Chrome/126.0 Safari/537.36"

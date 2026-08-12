@@ -7,7 +7,12 @@ edge and Yahoo only sees a request on cache misses / cold starts.
 """
 import asyncio
 import os
+import sys
 import time
+
+# On Vercel the function's own directory is sys.path[0], not the repo root.
+# Make both layouts work by ensuring the repo root is importable.
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 # Must be set before app.config reads them.
 os.environ.setdefault("DB_PATH", "/tmp/market.db")

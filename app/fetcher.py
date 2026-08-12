@@ -42,7 +42,7 @@ async def fetch_ticker(client: httpx.AsyncClient, ticker: str) -> dict | None:
     or None on any failure. Retries with backoff, rotates hosts, bootstraps
     cookies when rate-limited."""
     last_err: Exception | None = None
-    for attempt in range(3):
+    for attempt in range(max(1, config.FETCH_RETRIES)):
         url = YAHOO_HOSTS[attempt % len(YAHOO_HOSTS)].format(ticker=ticker)
         try:
             resp = await client.get(
