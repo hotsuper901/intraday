@@ -313,14 +313,21 @@ async def _fetch_nasdaq_series(client: httpx.AsyncClient, ticker: str) -> dict |
     if asset_class(ticker) != "equity":
         return None
     try:
-        resp = await client.get(
-            NASDAQ_CHART_URL.format(sym=ticker),
-            params={"assetclass": "stocks"},
-            headers={"User-Agent": config.USER_AGENT, "Accept": "application/json"},
-            timeout=config.HTTP_TIMEOUT,
-        )
-        resp.raise_for_status()
-        chart = resp.json().get("data", {}).get("chart") or []
+        for assetclass in ("stocks", "etf"):
+            resp = await client.get(
+                NASDAQ_CHART_URL.format(sym=ticker),
+                params={"assetclass": assetclass},
+                headers={"User-Agent": config.USER_AGENT, "Accept": "application/json"},
+                timeout=config.HTTP_TIMEOUT,
+            )
+            if resp.status_code != 200:
+                continue
+            payload = resp.json()
+            chart = (payload.get("data") or {}).get("chart") or []
+            if chart:
+                break
+        else:
+            return None
         pts = []
         for item in chart:
             ts = item.get("x")
@@ -352,7 +359,7 @@ async def _fetch_nasdaq_series(client: httpx.AsyncClient, ticker: str) -> dict |
             "session_open": bars[0]["ts"],
             "synthetic": True,
         }
-    except (httpx.HTTPError, ValueError, KeyError, IndexError, TypeError) as e:
+    except Exception as e:  # noqa: BLE001 — best-effort fallback, never crash
         LAST_FETCH_ERRORS[ticker] = f"nasdaq:{type(e).__name__}: {e}"
         return None
 
@@ -399,12 +406,15 @@ async def fetch_ticker(client: httpx.AsyncClient, ticker: str) -> dict | None:
                     return data
         else:
             # Equities/FX: crumb handshake, then Nasdaq close-series for equities.
-            crumbed = await _fetch_yahoo_with_crumb(client, ticker)
-            if crumbed:
-                return crumbed
-            series = await _fetch_nasdaq_series(client, ticker)
-            if series:
-                return series
+            try:
+                crumbed = await _fetch_yahoo_with_crumb(client, ticker)
+                if crumbed:
+                    return crumbed
+                series = await _fetch_nasdaq_series(client, ticker)
+                if series:
+                    return series
+            except Exception as e:  # noqa: BLE001 — fallback layer never crashes
+                LAST_FETCH_ERRORS[ticker] = f"fallback:{type(e).__name__}: {e}"
         log.warning("fetch %s failed after retries: %s", ticker, last_err)
         return None
 

@@ -119,6 +119,12 @@ def metrics_for(ticker: str, meta: dict | None, bars: list, source: str = "live"
     return m
 
 
+def _norm_result(res):
+    if isinstance(res, BaseException):
+        return [], None, "none"
+    return res
+
+
 async def screener_rows() -> tuple[list[dict], int]:
     async with httpx.AsyncClient() as client:
         coros = [bars_for(t, client) for t in config.WATCHLIST]
@@ -126,20 +132,23 @@ async def screener_rows() -> tuple[list[dict], int]:
             # Vercel functions have a hard time budget: collect whatever
             # finishes in time, mark the rest as unreachable.
             try:
-                results = await asyncio.wait_for(asyncio.gather(*coros), timeout=9.0)
+                results = await asyncio.wait_for(
+                    asyncio.gather(*coros, return_exceptions=True), timeout=9.0
+                )
             except asyncio.TimeoutError:
                 results = []
                 for c in coros:
                     if c.done():
                         try:
-                            results.append(c.result())
-                        except Exception:
+                            results.append(_norm_result(c.result()))
+                        except BaseException:
                             results.append(([], None, "none"))
                     else:
                         c.cancel()
                         results.append(([], None, "none"))
         else:
-            results = await asyncio.gather(*coros)
+            results = await asyncio.gather(*coros, return_exceptions=True)
+        results = [_norm_result(r) for r in results]
     rows: list[dict] = []
     errors = 0
     for t, (bars, meta, source) in zip(config.WATCHLIST, results):
