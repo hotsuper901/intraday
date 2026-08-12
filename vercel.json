@@ -1,8 +1,1 @@
-{
-  "functions": {
-    "api/screener.py": { "maxDuration": 10 },
-    "api/ticker.py": { "maxDuration": 10 },
-    "api/risk.py": { "maxDuration": 10 },
-    "api/status.py": { "maxDuration": 10 }
-  }
-}
+{}
