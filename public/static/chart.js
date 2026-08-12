@@ -12,7 +12,7 @@
     const ctx = canvas.getContext("2d");
     const dpr = window.devicePixelRatio || 1;
     const cssW = canvas.clientWidth || canvas.parentElement.clientWidth;
-    const cssH = 360;
+    const cssH = cssW < 500 ? 240 : 360;
     canvas.width = cssW * dpr;
     canvas.height = cssH * dpr;
     ctx.scale(dpr, dpr);

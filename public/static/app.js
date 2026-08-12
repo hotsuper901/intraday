@@ -7,6 +7,32 @@
   const esc = (s) => String(s).replace(/[&<>"']/g, (c) =>
     ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 
+  // --- device auto-detection: phone / tablet / desktop --------------------
+  // Sets data-device on <html>; CSS transforms the layout per device and the
+  // flag is also readable anywhere via window.__device.
+  (function detectDevice() {
+    const mqPhone = window.matchMedia("(max-width: 640px)");
+    const mqTablet = window.matchMedia("(min-width: 641px) and (max-width: 1024px)");
+    function set() {
+      const touch = ("ontouchstart" in window) || navigator.maxTouchPoints > 0;
+      let d = "desktop";
+      if (mqPhone.matches || (touch && window.innerWidth <= 700)) d = "phone";
+      else if (mqTablet.matches || touch) d = "tablet";
+      document.documentElement.setAttribute("data-device", d);
+      window.__device = d;
+    }
+    if (mqPhone.addEventListener) {
+      mqPhone.addEventListener("change", set);
+      mqTablet.addEventListener("change", set);
+    } else {
+      mqPhone.addListener(set);
+      mqTablet.addListener(set);
+    }
+    window.addEventListener("resize", set);
+    window.addEventListener("orientationchange", set);
+    set();
+  })();
+
   // --- ET clock ----------------------------------------------------------
   const etFmt = new Intl.DateTimeFormat("en-US", {
     timeZone: "America/New_York",
@@ -125,16 +151,16 @@
       } else {
         body.innerHTML = data.rows.map((r) => `
           <tr>
-            <td><a class="ticker-link" href="/ticker.html?symbol=${esc(r.ticker)}">${esc(r.ticker)}</a>${r.asset === "fx" ? '<span class="tag">FX</span>' : r.asset === "crypto" ? '<span class="tag">Crypto</span>' : ""}${r.source === "demo" && data.data_mode === "live" ? ' <span title="live fetch failed — showing demo data" class="muted">*</span>' : ""}</td>
-            <td class="muted">${esc(r.name)}</td>
-            <td class="num">${fmtNum(r.price)}</td>
-            <td class="num ${cls(r.change_pct)}">${signed(r.change_pct)}%</td>
-            <td class="num ${cls(r.from_open_pct)}">${signed(r.from_open_pct)}%</td>
-            <td class="num ${cls(r.rel_vol - 1)}">${fmtNum(r.rel_vol)}x</td>
-            <td class="num">${fmtNum(r.atr_pct)}%</td>
-            <td class="num ${r.rsi > 70 ? "pos" : r.rsi < 30 ? "neg" : ""}">${fmtNum(r.rsi, 1)}</td>
-            <td class="num ${cls(r.vwap_dist_pct)}">${signed(r.vwap_dist_pct)}%</td>
-            <td class="num">${fmtVol(r.day_volume)}</td>
+            <td data-label="Symbol"><a class="ticker-link" href="/ticker.html?symbol=${esc(r.ticker)}">${esc(r.ticker)}</a>${r.asset === "fx" ? '<span class="tag">FX</span>' : r.asset === "crypto" ? '<span class="tag">Crypto</span>' : ""}${r.source === "demo" && data.data_mode === "live" ? ' <span title="live fetch failed — showing demo data" class="muted">*</span>' : ""}</td>
+            <td class="muted" data-label="Name">${esc(r.name)}</td>
+            <td class="num" data-label="Price">${fmtNum(r.price)}</td>
+            <td class="num ${cls(r.change_pct)}" data-label="Chg %">${signed(r.change_pct)}%</td>
+            <td class="num ${cls(r.from_open_pct)}" data-label="Open %">${signed(r.from_open_pct)}%</td>
+            <td class="num ${cls(r.rel_vol - 1)}" data-label="RelVol">${fmtNum(r.rel_vol)}x</td>
+            <td class="num" data-label="ATR %">${fmtNum(r.atr_pct)}%</td>
+            <td class="num ${r.rsi > 70 ? "pos" : r.rsi < 30 ? "neg" : ""}" data-label="RSI">${fmtNum(r.rsi, 1)}</td>
+            <td class="num ${cls(r.vwap_dist_pct)}" data-label="VWAP Δ">${signed(r.vwap_dist_pct)}%</td>
+            <td class="num" data-label="Day Vol">${fmtVol(r.day_volume)}</td>
             <td><a class="btn small" href="/ticker.html?symbol=${esc(r.ticker)}">Risk →</a></td>
           </tr>`).join("");
       }
@@ -206,12 +232,12 @@
       const rows = bars.slice(-20).reverse();
       body.innerHTML = rows.map((b) => `
         <tr>
-          <td class="muted">${fmtTs(b.ts)}</td>
-          <td class="num">${fmtNum(b.open)}</td>
-          <td class="num">${fmtNum(b.high)}</td>
-          <td class="num">${fmtNum(b.low)}</td>
-          <td class="num ${cls(b.close - b.open)}">${fmtNum(b.close)}</td>
-          <td class="num">${fmtVol(b.volume)}</td>
+          <td class="muted" data-label="Time">${fmtTs(b.ts)}</td>
+          <td class="num" data-label="Open">${fmtNum(b.open)}</td>
+          <td class="num" data-label="High">${fmtNum(b.high)}</td>
+          <td class="num" data-label="Low">${fmtNum(b.low)}</td>
+          <td class="num ${cls(b.close - b.open)}" data-label="Close">${fmtNum(b.close)}</td>
+          <td class="num" data-label="Vol">${fmtVol(b.volume)}</td>
         </tr>`).join("");
     };
 

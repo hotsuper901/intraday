@@ -280,38 +280,118 @@ a:hover { color: #67e8f9; }
 .table-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; }
 .table-scroll .grid { min-width: 880px; }
 
-/* ---------- phones / small screens ---------- */
-@media (max-width: 760px) {
-  main { padding: 12px 12px 80px; }
-  .topbar { padding: 10px 14px; gap: 10px; }
-  .brand { font-size: 15px; gap: 8px; }
+/* ============================================================
+   Responsive layer — auto-detected via [data-device] + media queries
+   ============================================================ */
+/* fluid type everywhere it matters */
+.big-price #t-price { font-size: clamp(24px, 6.5vw, 38px); }
+.panel-head h1 { font-size: clamp(15px, 2.2vw, 17px); }
+.brand { font-size: clamp(14px, 2.6vw, 18px); }
+
+/* device hooks set by app.js (matchMedia + touch detection) */
+[data-device="phone"] .tape-track { animation-duration: 22s; }
+[data-device="phone"] .tape-item { font-size: 10.5px; }
+[data-device="tablet"] .tape-track { animation-duration: 32s; }
+
+/* ---------- tablets ---------- */
+@media (max-width: 1024px) {
+  main { padding: 16px 14px 80px; }
+  .stat-cards { grid-template-columns: repeat(4, 1fr); min-width: 0; }
+  .topbar { padding: 12px 16px; }
+  .panel { padding: 16px; }
+  .filters label { flex: 1 1 30%; }
+}
+
+/* ---------- phones: the real transformation ---------- */
+@media (max-width: 640px) {
+  body { font-size: 13.5px; }
+  main { padding: 10px 10px 70px; }
+  .topbar { padding: 9px 12px; gap: 8px; }
+  .brand { font-size: 14.5px; gap: 8px; }
   .brand .logo { width: 26px; height: 26px; font-size: 13px; border-radius: 7px; }
   .byline { display: none; }
   .topbar-right { gap: 6px; margin-left: auto; }
   .clock { display: none; }
-  .pill { font-size: 9.5px; padding: 3px 9px; }
-  .btn { padding: 7px 12px; font-size: 12px; }
-  .panel { padding: 14px 12px; border-radius: 13px; margin-bottom: 12px; }
+  .pill { font-size: 9px; padding: 3px 8px; }
+  .btn { padding: 8px 13px; font-size: 12.5px; border-radius: 8px; }
+  .btn.small { padding: 5px 11px; font-size: 11.5px; }
+
+  .panel { padding: 13px 12px; border-radius: 14px; margin-bottom: 12px; }
   .panel-head { gap: 10px; }
   .panel-head h1 { font-size: 15px; }
-  .filters { gap: 8px; width: 100%; }
-  .filters label { flex: 1 1 42%; }
-  .filters input, .filters select { width: 100%; }
-  .filters .btn-holder { display: flex; gap: 8px; }
+  .panel-head h1 .sub { font-size: 11px; }
+
+  /* filters: 2-col grid, full-width inputs */
+  .filters { display: grid; grid-template-columns: 1fr 1fr; gap: 9px; width: 100%; }
+  .filters label { flex: none; }
+  .filters input, .filters select { width: 100%; padding: 9px 10px; font-size: 15px; }
+  .filters .btn-holder { grid-column: 1 / -1; display: flex; gap: 8px; }
+
   .breadth { gap: 6px; }
-  .chip { font-size: 10.5px; padding: 3px 9px; }
-  .tape-track { gap: 20px; padding: 7px 12px; animation-duration: 30s; }
-  .tape-item { font-size: 11px; }
-  .big-price { gap: 10px; }
-  .big-price #t-price { font-size: 27px; }
-  .stat-cards { grid-template-columns: repeat(2, 1fr); min-width: 0; gap: 8px; }
-  .card { padding: 8px 10px; }
+  .chip { font-size: 10.5px; padding: 4px 10px; }
+
+  .tape { border-bottom-width: 1px; }
+  .tape-track { gap: 18px; padding: 6px 10px; }
+  .tape-item { font-size: 10.5px; }
+  .tape::before, .tape::after { width: 34px; }
+
+  /* ---- screener table becomes stacked cards ---- */
+  .table-scroll { overflow: visible; }
+  .table-scroll .grid { min-width: 0; }
+  .grid thead { display: none; }
+  .grid tbody { display: flex; flex-direction: column; gap: 10px; }
+  .grid tbody tr {
+    display: block;
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    padding: 8px 14px 10px;
+  }
+  .grid tbody tr:hover { background: rgba(34, 211, 238, 0.04); border-color: var(--line-strong); }
+  .grid tbody tr:hover td:first-child { box-shadow: none; }
+  .grid td {
+    display: flex; justify-content: space-between; align-items: baseline;
+    padding: 4.5px 0; border: 0; text-align: right; white-space: normal;
+  }
+  .grid td.num { text-align: right; }
+  .grid td::before {
+    content: attr(data-label);
+    color: var(--muted); font-size: 9.5px; font-weight: 650;
+    text-transform: uppercase; letter-spacing: .06em; margin-right: 14px;
+  }
+  .grid tr td:first-child { padding-top: 2px; font-size: 15px; }
+  .grid tr td:first-child .ticker-link { font-size: 15px; }
+  .grid .empty { display: block; text-align: center; padding: 22px 10px; }
+  .grid .empty::before { content: none; }
+
+  /* ticker detail */
+  .crumbs { font-size: 12px; margin: 2px 0 10px; }
+  .big-price { gap: 10px; align-items: center; }
+  .big-price #t-price { font-size: clamp(24px, 8vw, 30px); }
+  .stat-cards { grid-template-columns: repeat(2, 1fr); gap: 8px; }
+  .card { padding: 8px 10px; border-radius: 10px; }
+  .card .k { font-size: 9px; }
   .card .v { font-size: 13.5px; }
   .two-col { grid-template-columns: 1fr; gap: 12px; }
-  .risk-form { gap: 8px; }
-  .risk-form label { flex: 1 1 42%; }
-  .risk-form input { width: 100%; }
-  .verdict { font-size: 14px; padding: 11px 13px; }
-  .sizing { gap: 12px; font-size: 12px; }
-  .crumbs { font-size: 12px; }
+
+  /* risk panel */
+  .risk-form { display: grid; grid-template-columns: 1fr 1fr; gap: 9px; }
+  .risk-form label { flex: none; }
+  .risk-form input { width: 100%; padding: 9px 10px; font-size: 15px; }
+  .risk-form .btn { grid-column: 1 / -1; justify-self: start; }
+  .verdict { font-size: 15px; padding: 12px 14px; }
+  .reasons { font-size: 12.5px; }
+  .sizing { gap: 10px 16px; font-size: 12px; padding: 10px 12px; }
+
+  .small-table td, .small-table th { font-size: 12px; }
+}
+
+/* ---------- tiny phones ---------- */
+@media (max-width: 400px) {
+  .filters { grid-template-columns: 1fr; }
+  .risk-form { grid-template-columns: 1fr; }
+  .stat-cards { grid-template-columns: 1fr 1fr; }
+  .pill { font-size: 8.5px; padding: 2px 7px; }
+  .topbar { flex-wrap: nowrap; }
+  main { padding: 8px 8px 60px; }
 }
