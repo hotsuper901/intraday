@@ -397,6 +397,41 @@ async def fetch_cnbc_quote(client: httpx.AsyncClient, ticker: str) -> dict | Non
         return None
 
 
+async def fetch_yahoo_edge_batch(client: httpx.AsyncClient, tickers: list, interval: int = 5) -> dict:
+    """One batched edge call for many FX tickers — the middleware fetches all
+    URLs in parallel inside the edge, so a cold start pays one round-trip."""
+    vercel_url = os.environ.get("VERCEL_URL", "")
+    if not vercel_url or not tickers:
+        return {}
+    urls = {
+        t: YAHOO_HOSTS[0].format(ticker=t) + f"?range=2d&interval={interval}m"
+        for t in tickers
+    }
+    try:
+        resp = await client.post(
+            f"https://{vercel_url}/api/edge-fetch",
+            json={"urls": list(urls.values())},
+            timeout=min(config.HTTP_TIMEOUT + 6.0, 14.0),
+        )
+        if resp.status_code != 200:
+            LAST_FETCH_ERRORS["fx-batch"] = f"edge-batch:http {resp.status_code}"
+            return {}
+        payload = resp.json()
+        out: dict = {}
+        for t, u in urls.items():
+            entry = payload.get(u)
+            if entry and entry.get("status") == 200 and entry.get("body"):
+                data = _parse_chart(t, entry["body"])
+                if data:
+                    data["bars"] = data["bars"][-288:]
+                    data["session_open"] = data["bars"][0]["ts"]
+                    out[t] = data
+        return out
+    except Exception as e:  # noqa: BLE001 — fallback layer never crashes
+        LAST_FETCH_ERRORS["fx-batch"] = f"edge-batch:{type(e).__name__}: {e}"
+        return {}
+
+
 async def _fetch_yahoo_via_edge(client: httpx.AsyncClient, ticker: str, interval: int = 5) -> dict | None:
     """Yahoo chart data through Vercel's own edge middleware proxy. Edge IPs
     are shared with real users, so Yahoo cannot hard-block them the way it

@@ -37,6 +37,7 @@ from app.fetcher import (  # noqa: E402
     fetch_cnbc_quote,
     fetch_demo,
     fetch_ticker,
+    fetch_yahoo_edge_batch,
     market_state,
 )
 from app.fetcher import _fetch_finnhub_quote as fetch_finnhub_quote  # noqa: E402
@@ -49,6 +50,19 @@ app = FastAPI(title="Intraday Radar")
 # --------------------------------------------------------------------------
 _INSTANCE_CACHE: dict[tuple[str, int], tuple[float, list, dict | None, str]] = {}
 _TTL_SECONDS = 45.0
+_FX_BATCH_CACHE: dict = {"ts": 0.0, "results": {}}
+
+
+async def _fx_batch(client: httpx.AsyncClient) -> dict:
+    """One batched edge round-trip for the whole FX watchlist (cached ~20s)."""
+    global _FX_BATCH_CACHE
+    now = time.time()
+    if _FX_BATCH_CACHE["results"] and now - _FX_BATCH_CACHE["ts"] < 20:
+        return _FX_BATCH_CACHE["results"]
+    tickers = [t for t in config.WATCHLIST if asset_class(t) == "fx"]
+    results = await fetch_yahoo_edge_batch(client, tickers)
+    _FX_BATCH_CACHE = {"ts": now, "results": results}
+    return results
 
 
 async def bars_for(ticker: str, client: httpx.AsyncClient, interval: int = 5) -> tuple[list, dict | None, str]:
@@ -65,7 +79,13 @@ async def bars_for(ticker: str, client: httpx.AsyncClient, interval: int = 5) ->
         db.init_db()
         data = await asyncio.to_thread(fetch_demo, ticker)
     else:
-        data = await fetch_ticker(client, ticker, interval)
+        data = None
+        if config.SERVERLESS and asset_class(ticker) == "fx" and interval == 5:
+            # One batched edge round-trip serves the whole FX watchlist.
+            batch = await _fx_batch(client)
+            data = batch.get(ticker)
+        if not data:
+            data = await fetch_ticker(client, ticker, interval)
         if not data and config.LIVE_FALLBACK_TO_DEMO:
             source = "demo"
             db.init_db()
@@ -345,7 +365,7 @@ def api_status():
     state, mins = market_state()
     return JSONResponse(
         {
-            "version": "v16",
+            "version": "v17",
             "mode": config.DATA_MODE,
             "watchlist": config.WATCHLIST,
             "market_state": state,
