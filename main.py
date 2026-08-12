@@ -255,7 +255,22 @@ async def api_signal(req: SignalRequest):
                 bars_5m = signals.resample(bars_1m, 5)
                 degraded = False
     if len(bars_1m) < 26:
-        raise HTTPException(status_code=404, detail=f"not enough data for {t}")
+        # Last resorts: one direct retry (bypasses the instance cache), then
+        # labeled demo bars for FX so the signal always renders something.
+        if config.DATA_MODE != "demo":
+            direct = await fetch_ticker(client, t, interval=5)
+            if direct and len(direct["bars"]) >= 26:
+                bars_1m = bars_5m = direct["bars"]
+                degraded = True
+        if len(bars_1m) < 26 and asset_class(t) == "fx":
+            db.init_db()
+            demo_data = await asyncio.to_thread(fetch_demo, t)
+            if demo_data and len(demo_data["bars"]) >= 26:
+                bars_1m = bars_5m = demo_data["bars"]
+                degraded = True
+                source = "demo"
+        if len(bars_1m) < 26:
+            raise HTTPException(status_code=404, detail=f"not enough data for {t}")
     result = signals.assess(bars_1m, bars_5m)
     result["ticker"] = t
     result["name"] = (meta or {}).get("name") or t
