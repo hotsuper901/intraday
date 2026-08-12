@@ -48,7 +48,7 @@ app = FastAPI(title="Intraday Radar")
 # On-demand fetch layer with a per-warm-instance TTL cache
 # --------------------------------------------------------------------------
 _INSTANCE_CACHE: dict[tuple[str, int], tuple[float, list, dict | None, str]] = {}
-_TTL_SECONDS = 25.0
+_TTL_SECONDS = 45.0
 
 
 async def bars_for(ticker: str, client: httpx.AsyncClient, interval: int = 5) -> tuple[list, dict | None, str]:
@@ -345,7 +345,7 @@ def api_status():
     state, mins = market_state()
     return JSONResponse(
         {
-            "version": "v14",
+            "version": "v16",
             "mode": config.DATA_MODE,
             "watchlist": config.WATCHLIST,
             "market_state": state,

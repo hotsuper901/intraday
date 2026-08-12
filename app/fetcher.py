@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
+import os
 import random
 import time
 import urllib.parse
@@ -396,31 +397,63 @@ async def fetch_cnbc_quote(client: httpx.AsyncClient, ticker: str) -> dict | Non
         return None
 
 
-async def _fetch_yahoo_via_jina(client: httpx.AsyncClient, ticker: str, interval: int = 5) -> dict | None:
-    """Yahoo chart data through Jina AI's reader proxy. Jina fetches from
-    Google Cloud IPs that Yahoo does not rate-limit, so this unblocks real
-    candles for equities and FX on serverless platforms. Free tier: ~20
-    requests/minute — fine with CDN caching on top."""
+async def _fetch_yahoo_via_edge(client: httpx.AsyncClient, ticker: str, interval: int = 5) -> dict | None:
+    """Yahoo chart data through Vercel's own edge middleware proxy. Edge IPs
+    are shared with real users, so Yahoo cannot hard-block them the way it
+    blocks serverless-function datacenter IPs."""
+    vercel_url = os.environ.get("VERCEL_URL", "")
+    if not vercel_url:
+        return None
     yahoo_url = YAHOO_HOSTS[0].format(ticker=ticker) + f"?range=1d&interval={interval}m"
     try:
         resp = await client.get(
-            JINA_BASE + urllib.parse.quote(yahoo_url, safe=""),
-            # A realistic browser UA trips Jina's Cloudflare challenge; the
-            # simple UA is routed through their bot-allowed path.
-            headers={"User-Agent": "Mozilla/5.0"},
+            f"https://{vercel_url}/api/edge-fetch",
+            params={"url": yahoo_url},
             timeout=min(config.HTTP_TIMEOUT + 4.0, 9.0),
         )
         if resp.status_code != 200:
+            LAST_FETCH_ERRORS[ticker] = f"edge:http {resp.status_code}"
             return None
-        marker = "Markdown Content:"
-        idx = resp.text.find(marker)
-        if idx == -1:
-            return None
-        payload = json.loads(resp.text[idx + len(marker):].strip())
-        return _parse_chart(ticker, payload)
+        return _parse_chart(ticker, resp.json())
     except (httpx.HTTPError, ValueError, KeyError, IndexError, TypeError) as e:
-        LAST_FETCH_ERRORS[ticker] = f"jina:{type(e).__name__}: {e}"
+        LAST_FETCH_ERRORS[ticker] = f"edge:{type(e).__name__}: {e}"
         return None
+
+
+async def _fetch_yahoo_via_jina(client: httpx.AsyncClient, ticker: str, interval: int = 5) -> dict | None:
+    """Yahoo chart data through Jina AI's reader proxy. Jina fetches from
+    Google Cloud IPs that Yahoo does not rate-limit, so this unblocks real
+    candles for FX on serverless platforms. Free tier: ~20 requests/minute
+    and occasionally truncates large payloads under load — retry with backoff
+    when the response comes back thin."""
+    yahoo_url = YAHOO_HOSTS[0].format(ticker=ticker) + f"?range=1d&interval={interval}m"
+    min_bars = 100 if interval >= 5 else 500  # full 1d/5m ≈ 280 bars
+    for attempt in range(3):
+        try:
+            resp = await client.get(
+                JINA_BASE + urllib.parse.quote(yahoo_url, safe=""),
+                # A realistic browser UA trips Jina's Cloudflare challenge; the
+                # simple UA is routed through their bot-allowed path.
+                headers={"User-Agent": "Mozilla/5.0"},
+                timeout=min(config.HTTP_TIMEOUT + 4.0, 9.0),
+            )
+            if resp.status_code != 200:
+                continue
+            marker = "Markdown Content:"
+            idx = resp.text.find(marker)
+            if idx == -1:
+                continue
+            payload = json.loads(resp.text[idx + len(marker):].strip())
+            data = _parse_chart(ticker, payload)
+            if data and len(data["bars"]) >= min_bars:
+                return data
+            # Thin response — likely truncated under load; retry shortly.
+        except (httpx.HTTPError, ValueError, KeyError, IndexError, TypeError) as e:
+            LAST_FETCH_ERRORS[ticker] = f"jina:{type(e).__name__}: {e}"
+        if attempt < 2:
+            await asyncio.sleep(2.0 + attempt * 2.0)
+    LAST_FETCH_ERRORS[ticker] = "jina:truncated or unavailable after retries"
+    return None
 
 
 async def _fetch_yahoo_with_crumb(client: httpx.AsyncClient, ticker: str) -> dict | None:
@@ -557,11 +590,13 @@ async def fetch_ticker(client: httpx.AsyncClient, ticker: str, interval: int = 5
                 if data:
                     return data
         else:
-            # FX: Jina-proxied Yahoo (fresh IPs, real candles). Equities use
-            # the Nasdaq series. Jina is reserved for FX only (12 pairs) to
-            # stay under its free-tier rate limit.
+            # FX: edge-proxied Yahoo first (Vercel edge IPs), then Jina.
+            # Equities use the Nasdaq series.
             try:
                 if asset_class(ticker) == "fx":
+                    via_edge = await _fetch_yahoo_via_edge(client, ticker, interval)
+                    if via_edge:
+                        return via_edge
                     via_jina = await _fetch_yahoo_via_jina(client, ticker, interval)
                     if via_jina:
                         return via_jina
