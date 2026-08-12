@@ -36,7 +36,7 @@ KRAKEN_PAIRS = {
     "BTC-USD": "XBTUSD", "ETH-USD": "ETHUSD", "SOL-USD": "SOLUSD",
     "XRP-USD": "XRPUSD", "DOGE-USD": "XDGUSD", "ADA-USD": "ADAUSD",
     "LINK-USD": "LINKUSD", "LTC-USD": "LTCUSD", "AVAX-USD": "AVAXUSD",
-    "DOT-USD": "DOTUSD", "XLM-USD": "XXLMUSD",
+    "DOT-USD": "DOTUSD", "XLM-USD": "XLMUSD",
 }
 
 # Yahoo rate-limits hard when we fire dozens of parallel requests from a
