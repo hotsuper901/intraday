@@ -26,8 +26,10 @@ YAHOO_HOSTS = [
     "https://query2.finance.yahoo.com/v8/finance/chart/{ticker}",
 ]
 COOKIE_URL = "https://fc.yahoo.com"
-BINANCE_KLINES_URL = "https://api.binance.com/api/v3/klines"
-BINANCE_24H_URL = "https://api.binance.com/api/v3/ticker/24hr"
+# Bybit public market data (no key). Unlike Binance, it serves US datacenter
+# IPs (Vercel functions) without geo-blocking.
+BYBIT_KLINE_URL = "https://api.bybit.com/v5/market/kline"
+BYBIT_TICKER_URL = "https://api.bybit.com/v5/market/tickers"
 
 # Yahoo rate-limits hard when we fire dozens of parallel requests from a
 # datacenter IP. Cap concurrency across the whole process.
@@ -46,45 +48,50 @@ async def _bootstrap_cookies(client: httpx.AsyncClient) -> None:
         pass
 
 
-def _binance_symbol(ticker: str) -> str | None:
-    """BTC-USD -> BTCUSDT. Binance pairs quote against USDT."""
+def _crypto_pair(ticker: str) -> str | None:
+    """BTC-USD -> BTCUSDT. Bybit spot pairs quote against USDT."""
     if asset_class(ticker) != "crypto":
         return None
     return ticker.upper().split("-")[0] + "USDT"
 
 
-async def _fetch_binance(client: httpx.AsyncClient, ticker: str) -> dict | None:
-    """Crypto OHLCV from Binance's public API (no key). Used as fallback when
-    Yahoo refuses datacenter IPs."""
-    sym = _binance_symbol(ticker)
+async def _fetch_bybit(client: httpx.AsyncClient, ticker: str) -> dict | None:
+    """Crypto OHLCV from Bybit's public API (no key). Used as fallback when
+    Yahoo refuses datacenter IPs and as the primary crypto source there."""
+    sym = _crypto_pair(ticker)
     if not sym:
         return None
     try:
         resp = await client.get(
-            BINANCE_KLINES_URL,
-            params={"symbol": sym, "interval": "5m", "limit": 120},
+            BYBIT_KLINE_URL,
+            params={"category": "spot", "symbol": sym, "interval": 5, "limit": 120},
             timeout=config.HTTP_TIMEOUT,
         )
         resp.raise_for_status()
-        klines = resp.json()
+        klines = resp.json().get("result", {}).get("list", [])
         bars = [
             {
-                "ts": int(k[0] // 1000),
+                "ts": int(int(k[0]) // 1000),
                 "open": float(k[1]),
                 "high": float(k[2]),
                 "low": float(k[3]),
                 "close": float(k[4]),
                 "volume": float(k[5]),
             }
-            for k in klines
+            for k in reversed(klines)  # Bybit returns newest-first
         ]
         if not bars:
             return None
         prev_close = bars[0]["open"]
         try:
-            t = await client.get(BINANCE_24H_URL, params={"symbol": sym}, timeout=config.HTTP_TIMEOUT)
+            t = await client.get(
+                BYBIT_TICKER_URL,
+                params={"category": "spot", "symbol": sym},
+                timeout=config.HTTP_TIMEOUT,
+            )
             if t.status_code == 200:
-                prev_close = float(t.json().get("prevClosePrice") or prev_close)
+                ticker_row = t.json().get("result", {}).get("list", [{}])[0]
+                prev_close = float(ticker_row.get("prevPrice24h") or prev_close)
         except Exception:
             pass
         return {
@@ -94,7 +101,7 @@ async def _fetch_binance(client: httpx.AsyncClient, ticker: str) -> dict | None:
             "session_open": bars[0]["ts"],
         }
     except (httpx.HTTPError, ValueError, IndexError, TypeError, KeyError) as e:
-        LAST_FETCH_ERRORS[ticker] = f"binance:{type(e).__name__}: {e}"
+        LAST_FETCH_ERRORS[ticker] = f"bybit:{type(e).__name__}: {e}"
         return None
 
 
@@ -134,9 +141,9 @@ async def fetch_ticker(client: httpx.AsyncClient, ticker: str) -> dict | None:
             if attempt < max(0, config.FETCH_RETRIES - 1):
                 await asyncio.sleep(1.5 * (attempt + 1) + random.random())
         if asset_class(ticker) == "crypto":
-            binance_data = await _fetch_binance(client, ticker)
-            if binance_data:
-                return binance_data
+            bybit_data = await _fetch_bybit(client, ticker)
+            if bybit_data:
+                return bybit_data
         log.warning("fetch %s failed after retries: %s", ticker, last_err)
         return None
 
