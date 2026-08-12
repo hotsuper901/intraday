@@ -83,29 +83,34 @@ assets don't round to zero.
 ## Deploying to Vercel
 
 Vercel is serverless: no long-running poller and no persistent disk. This repo
-includes a full Vercel layout that adapts the same app accordingly — static
-frontend in `public/`, serverless functions in `api/`, data fetched on demand
-with CDN caching.
+is structured for Vercel's Python runtime, which auto-detects FastAPI and
+loads a single entrypoint app that routes every request.
 
 How it works on Vercel:
 
-- `GET /api/screener` and `GET /api/ticker?symbol=X` respond with
+- Root `main.py` is the entrypoint (pinned via `tool.vercel.entrypoint` in
+  `pyproject.toml`). It serves the static frontend from `public/` and the API
+  (`/api/screener`, `/api/ticker`, `/api/risk`, `/api/status`) in one app.
+- `GET /api/screener` and `GET /api/ticker` respond with
   `Cache-Control: s-maxage=30` so Vercel's edge CDN absorbs repeat traffic and
   Yahoo only sees a request on cache misses and cold starts.
-- A per-warm-instance memory cache (25s TTL) shares fetched bars across the
-  functions in the same instance.
-- No SQLite — bars are computed straight from the live fetch. Demo mode uses an
+- A per-warm-instance memory cache (25s TTL) shares fetched bars across
+  requests in the same instance. No SQLite in live mode; demo mode uses an
   ephemeral `/tmp` database.
-- `vercel.json` gives each function a 10s max duration (fits the retry budget).
+- The original background-poller app (`app/main.py`, `docker compose up`) is
+  untouched and remains the choice for a persistent server.
 
 Deploy:
 
 ```bash
 npm i -g vercel
 vercel login
-vercel            # from the repo root; confirm the detected settings
-vercel --prod     # production deployment
+vercel            # from the repo root; accept the defaults (FastAPI preset)
+vercel --prod
 ```
+
+Or import the GitHub repo in the Vercel dashboard (Add New → Project →
+Import Git Repository) — every push to `main` then redeploys automatically.
 
 Set these environment variables in the Vercel dashboard
 (Project → Settings → Environment Variables):
@@ -113,13 +118,14 @@ Set these environment variables in the Vercel dashboard
 | Variable                 | Value        | Meaning                                  |
 | ------------------------ | ------------ | ---------------------------------------- |
 | `DATA_MODE`              | `live`       | `live` (Yahoo) or `demo` (synthetic)     |
-| `WATCHLIST`              | `AAPL,TSLA,NVDA,AMD,SPY` | Symbols to screen (keep it ≤ 10–15 to stay under Yahoo's rate limit) |
+| `WATCHLIST`              | `AAPL,TSLA,NVDA,BTC-USD,ETH-USD,SOL-USD,EURUSD=X,USDJPY=X,SPY,QQQ` | Symbols to screen (keep it ≤ 10–15 to stay under Yahoo's rate limit) |
 | `LIVE_FALLBACK_TO_DEMO`  | `1` or `0`   | Show clearly-labeled demo bars for a symbol if the live fetch fails |
 
-Try the exact Vercel layout locally before deploying (same-origin static + API):
+Try the exact Vercel layout locally before deploying:
 
 ```bash
-DATA_MODE=demo uvicorn dev:app --port 8000
+DATA_MODE=demo uvicorn main:app --port 8000
+# or: python dev.py
 ```
 
 Notes:

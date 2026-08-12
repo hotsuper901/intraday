@@ -6,6 +6,7 @@ import logging
 import time
 from contextlib import asynccontextmanager
 from datetime import datetime
+from pathlib import Path
 
 from fastapi import FastAPI, HTTPException, Query, Request
 from fastapi.responses import HTMLResponse
@@ -18,7 +19,10 @@ from .fetcher import ET
 
 log = logging.getLogger("main")
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(name)s %(levelname)s %(message)s")
-templates = Jinja2Templates(directory="app/templates")
+
+# Absolute paths so the module can be imported from any working directory.
+_APP_DIR = Path(__file__).resolve().parent
+templates = Jinja2Templates(directory=str(_APP_DIR / "templates"))
 
 
 # --------------------------------------------------------------------------
@@ -54,7 +58,7 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(title="Intraday Radar", lifespan=lifespan)
-app.mount("/static", StaticFiles(directory="app/static"), name="static")
+app.mount("/static", StaticFiles(directory=str(_APP_DIR / "static")), name="static")
 
 
 # --------------------------------------------------------------------------
