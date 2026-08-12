@@ -134,19 +134,24 @@ a:hover { color: #67e8f9; }
 
 /* ---------- filters ---------- */
 .filters {
-  display: flex; gap: 10px; align-items: end; flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: 10px 12px; align-items: end;
   background: var(--card); border: 1px solid var(--line);
-  border-radius: 12px; padding: 10px 12px;
+  border-radius: 12px; padding: 12px;
+  margin-bottom: 12px;
 }
+.filters-actions { display: flex; gap: 8px; align-items: flex-end; justify-content: flex-end; }
+.filters-actions .btn { height: 34px; white-space: nowrap; }
 .filters label { display: flex; flex-direction: column; font-size: 10.5px; color: var(--muted); gap: 5px; text-transform: uppercase; letter-spacing: .06em; font-weight: 600; }
 .filters input, .filters select, .risk-form input {
   background: var(--bg1); border: 1px solid var(--line-strong); color: var(--text);
-  border-radius: 9px; padding: 7px 10px; font-family: var(--mono); width: 96px; font-size: 13px;
-  height: 34px; line-height: 1.2;
+  border-radius: 9px; padding: 7px 10px; font-family: var(--mono); width: 100%; font-size: 13px;
+  height: 34px; line-height: 1.2; min-width: 0;
   transition: border-color .15s ease, box-shadow .15s ease;
 }
 .filters select {
-  width: auto; cursor: pointer; appearance: none; -webkit-appearance: none;
+  width: 100%; cursor: pointer; appearance: none; -webkit-appearance: none;
   background-image: url("data:image/svg+xml;charset=UTF-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%238b98ad' stroke-width='1.5' fill='none'/%3E%3C/svg%3E");
   background-repeat: no-repeat; background-position: right 9px center;
   padding-right: 28px;
@@ -214,12 +219,12 @@ a:hover { color: #67e8f9; }
 
 /* ---------- risk panel ---------- */
 .risk-form {
-  display: grid; grid-template-columns: repeat(auto-fit, minmax(104px, 1fr));
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
   gap: 10px; align-items: end; margin-bottom: 14px;
   background: var(--card); border: 1px solid var(--line);
   border-radius: 12px; padding: 12px;
 }
-.risk-form .btn { justify-self: start; }
+.risk-form .btn { justify-self: start; height: 34px; }
 .risk-form label { display: flex; flex-direction: column; gap: 5px; font-size: 10.5px; color: var(--muted); text-transform: uppercase; letter-spacing: .06em; font-weight: 600; }
 .risk-form input { width: 100%; min-width: 0; }
 
@@ -399,6 +404,7 @@ a:hover { color: #67e8f9; }
   .risk-form label { flex: none; }
   .risk-form input { width: 100%; padding: 9px 10px; font-size: 15px; }
   .risk-form .btn { grid-column: 1 / -1; justify-self: start; }
+  .filters-actions { grid-column: 1 / -1; justify-content: space-between; }
   .verdict { font-size: 15px; padding: 12px 14px; }
   .reasons { font-size: 12.5px; }
   .sizing { gap: 10px 16px; font-size: 12px; padding: 10px 12px; }

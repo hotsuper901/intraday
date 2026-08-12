@@ -26,18 +26,20 @@
       <div class="panel-head">
         <h1>Screener <span class="sub">equities · crypto · forex — find the movers that matter</span></h1>
         <button class="btn small filter-toggle" id="filter-toggle">Filters ▾</button>
-        <div class="filters" id="filters-panel">
-          <label>Min chg % <input type="number" id="f-min-change" step="0.1" placeholder="0.0"></label>
-          <label>Min rel vol <input type="number" id="f-min-relvol" step="0.1" placeholder="0"></label>
-          <label>Min price <input type="number" id="f-min-price" step="0.01" placeholder="0"></label>
-          <label>Max price <input type="number" id="f-max-price" step="0.01" placeholder="∞"></label>
-          <label>Direction
-            <select id="f-direction">
-              <option value="any" selected>Any</option>
-              <option value="up">Up</option>
-              <option value="down">Down</option>
-            </select>
-          </label>
+      </div>
+      <div class="filters" id="filters-panel">
+        <label>Min chg % <input type="number" id="f-min-change" step="0.1" placeholder="0.0"></label>
+        <label>Min rel vol <input type="number" id="f-min-relvol" step="0.1" placeholder="0"></label>
+        <label>Min price <input type="number" id="f-min-price" step="0.01" placeholder="0"></label>
+        <label>Max price <input type="number" id="f-max-price" step="0.01" placeholder="∞"></label>
+        <label>Direction
+          <select id="f-direction">
+            <option value="any" selected>Any</option>
+            <option value="up">Up</option>
+            <option value="down">Down</option>
+          </select>
+        </label>
+        <div class="filters-actions">
           <button class="btn small" id="preset-movers">Movers</button>
           <button class="btn small" id="preset-all">All</button>
         </div>
