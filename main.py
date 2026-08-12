@@ -208,6 +208,7 @@ def api_status():
     state, mins = market_state()
     return JSONResponse(
         {
+            "version": "v6",
             "mode": config.DATA_MODE,
             "watchlist": config.WATCHLIST,
             "market_state": state,
@@ -221,9 +222,10 @@ def api_status():
 
 # --------------------------------------------------------------------------
 # Static frontend (public/). API routers above take precedence over this
-# catch-all mount.
+# catch-all mount. check_dir=False so import can never crash if public/ is
+# not in the function bundle (Vercel serves it from the CDN separately).
 # --------------------------------------------------------------------------
-app.mount("/", StaticFiles(directory=str(ROOT / "public"), html=True), name="frontend")
+app.mount("/", StaticFiles(directory=str(ROOT / "public"), html=True, check_dir=False), name="frontend")
 
 
 if __name__ == "__main__":

@@ -64,7 +64,7 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(title="Intraday Radar", lifespan=lifespan)
-app.mount("/static", StaticFiles(directory=str(_APP_DIR / "static")), name="static")
+app.mount("/static", StaticFiles(directory=str(_APP_DIR / "static"), check_dir=False), name="static")
 
 
 # --------------------------------------------------------------------------
