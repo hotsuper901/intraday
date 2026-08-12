@@ -109,10 +109,9 @@
       if (idx < 0 || idx >= bars.length) return;
       const b = bars[idx];
       if (onHover) {
-        onHover(
-          `${fmtTime(b.ts)}  O ${b.open.toFixed(2)}  H ${b.high.toFixed(2)}  L ${b.low.toFixed(2)}  ` +
-          `C ${b.close.toFixed(2)}  V ${(b.volume / 1000).toFixed(0)}k`
-        );
+        const ohlc = `O ${b.open.toFixed(2)}  H ${b.high.toFixed(2)}  L ${b.low.toFixed(2)}  C ${b.close.toFixed(2)}`;
+        // Narrow screens: drop the time + volume so the readout always fits.
+        onHover(cssW < 500 ? ohlc : `${fmtTime(b.ts)}  ${ohlc}  V ${(b.volume / 1000).toFixed(0)}k`);
       }
     }
     canvas.onmousemove = (e) => {

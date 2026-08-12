@@ -432,3 +432,47 @@ a:hover { color: #67e8f9; }
   .topbar-right { flex: 0 0 auto; }
   .brand { flex: 1 1 auto; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 }
+
+/* ============================================================
+   Phone detail page — cohesive stat sheet + fitting readout
+   ============================================================ */
+@media (max-width: 640px) {
+  /* one unified spec sheet instead of scattered chips */
+  .stat-cards {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 0;
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    overflow: hidden;
+    background: var(--card);
+  }
+  .card {
+    border: 0;
+    border-radius: 0;
+    padding: 9px 10px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    gap: 2px;
+  }
+  .card:hover { transform: none; box-shadow: none; border-color: transparent; }
+  .card:nth-child(odd) { border-right: 1px solid var(--line); }
+  .card:nth-child(-n+6) { border-bottom: 1px solid var(--line); }
+  .card .k { white-space: nowrap; font-size: 9px; }
+  .card .v { font-size: 13px; }
+
+  /* chart readout always fits */
+  .chart-wrap { overflow: hidden; }
+  .chart-readout {
+    font-size: 12px;
+    white-space: normal;
+    line-height: 1.45;
+    padding: 8px 10px;
+  }
+
+  /* price header never overflows */
+  .big-price { flex-wrap: wrap; row-gap: 6px; }
+  #t-name { display: block; word-break: break-word; }
+}
