@@ -26,10 +26,18 @@ YAHOO_HOSTS = [
     "https://query2.finance.yahoo.com/v8/finance/chart/{ticker}",
 ]
 COOKIE_URL = "https://fc.yahoo.com"
-# Bybit public market data (no key). Unlike Binance, it serves US datacenter
-# IPs (Vercel functions) without geo-blocking.
-BYBIT_KLINE_URL = "https://api.bybit.com/v5/market/kline"
-BYBIT_TICKER_URL = "https://api.bybit.com/v5/market/tickers"
+# US-friendly crypto sources (no key) — Yahoo, Binance, and Bybit all refuse
+# datacenter IPs like Vercel's; Kraken and Coinbase Exchange do not.
+KRAKEN_OHLC_URL = "https://api.kraken.com/0/public/OHLC"
+COINBASE_CANDLES_URL = "https://api.exchange.coinbase.com/products/{pair}/candles"
+CRYPTO_WINDOW = 288  # 24h of 5m bars
+
+KRAKEN_PAIRS = {
+    "BTC-USD": "XBTUSD", "ETH-USD": "ETHUSD", "SOL-USD": "SOLUSD",
+    "XRP-USD": "XRPUSD", "DOGE-USD": "XDGUSD", "ADA-USD": "ADAUSD",
+    "LINK-USD": "LINKUSD", "LTC-USD": "LTCUSD", "AVAX-USD": "AVAXUSD",
+    "DOT-USD": "DOTUSD", "XLM-USD": "XXLMUSD",
+}
 
 # Yahoo rate-limits hard when we fire dozens of parallel requests from a
 # datacenter IP. Cap concurrency across the whole process.
@@ -48,60 +56,86 @@ async def _bootstrap_cookies(client: httpx.AsyncClient) -> None:
         pass
 
 
-def _crypto_pair(ticker: str) -> str | None:
-    """BTC-USD -> BTCUSDT. Bybit spot pairs quote against USDT."""
-    if asset_class(ticker) != "crypto":
-        return None
-    return ticker.upper().split("-")[0] + "USDT"
+def _trim_24h(bars: list[dict]) -> list[dict] | None:
+    bars = bars[-CRYPTO_WINDOW:]
+    return bars or None
 
 
-async def _fetch_bybit(client: httpx.AsyncClient, ticker: str) -> dict | None:
-    """Crypto OHLCV from Bybit's public API (no key). Used as fallback when
-    Yahoo refuses datacenter IPs and as the primary crypto source there."""
-    sym = _crypto_pair(ticker)
-    if not sym:
+async def _fetch_kraken(client: httpx.AsyncClient, ticker: str) -> dict | None:
+    """Crypto OHLCV from Kraken's public API (no key, US-friendly)."""
+    pair = KRAKEN_PAIRS.get(ticker.upper())
+    if not pair:
         return None
     try:
         resp = await client.get(
-            BYBIT_KLINE_URL,
-            params={"category": "spot", "symbol": sym, "interval": 5, "limit": 120},
-            timeout=config.HTTP_TIMEOUT,
+            KRAKEN_OHLC_URL, params={"pair": pair, "interval": 5}, timeout=config.HTTP_TIMEOUT
         )
         resp.raise_for_status()
-        klines = resp.json().get("result", {}).get("list", [])
+        data = resp.json()
+        if data.get("error"):
+            LAST_FETCH_ERRORS[ticker] = f"kraken:{data['error']}"
+            return None
+        rows = data["result"][pair]
         bars = [
             {
-                "ts": int(int(k[0]) // 1000),
-                "open": float(k[1]),
-                "high": float(k[2]),
-                "low": float(k[3]),
-                "close": float(k[4]),
-                "volume": float(k[5]),
+                "ts": int(float(r[0])),
+                "open": float(r[1]),
+                "high": float(r[2]),
+                "low": float(r[3]),
+                "close": float(r[4]),
+                "volume": float(r[6]),
             }
-            for k in reversed(klines)  # Bybit returns newest-first
+            for r in rows
         ]
+        bars = _trim_24h(bars)
         if not bars:
             return None
-        prev_close = bars[0]["open"]
-        try:
-            t = await client.get(
-                BYBIT_TICKER_URL,
-                params={"category": "spot", "symbol": sym},
-                timeout=config.HTTP_TIMEOUT,
-            )
-            if t.status_code == 200:
-                ticker_row = t.json().get("result", {}).get("list", [{}])[0]
-                prev_close = float(ticker_row.get("prevPrice24h") or prev_close)
-        except Exception:
-            pass
         return {
             "bars": bars,
-            "name": DEMO_NAMES.get(ticker, sym),
-            "prev_close": prev_close,
+            "name": DEMO_NAMES.get(ticker, pair),
+            "prev_close": bars[0]["open"],
             "session_open": bars[0]["ts"],
         }
     except (httpx.HTTPError, ValueError, IndexError, TypeError, KeyError) as e:
-        LAST_FETCH_ERRORS[ticker] = f"bybit:{type(e).__name__}: {e}"
+        LAST_FETCH_ERRORS[ticker] = f"kraken:{type(e).__name__}: {e}"
+        return None
+
+
+async def _fetch_coinbase(client: httpx.AsyncClient, ticker: str) -> dict | None:
+    """Crypto OHLCV from Coinbase Exchange's public API (no key, US-based)."""
+    pair = ticker.upper()
+    try:
+        resp = await client.get(
+            COINBASE_CANDLES_URL.format(pair=pair),
+            params={"granularity": 300},
+            headers={"User-Agent": config.USER_AGENT},
+            timeout=config.HTTP_TIMEOUT,
+        )
+        resp.raise_for_status()
+        rows = resp.json()
+        # Coinbase rows: [time, low, high, open, close, volume], newest first.
+        bars = [
+            {
+                "ts": int(r[0]),
+                "open": float(r[3]),
+                "high": float(r[2]),
+                "low": float(r[1]),
+                "close": float(r[4]),
+                "volume": float(r[5]),
+            }
+            for r in reversed(rows)
+        ]
+        bars = _trim_24h(bars)
+        if not bars:
+            return None
+        return {
+            "bars": bars,
+            "name": DEMO_NAMES.get(ticker, pair),
+            "prev_close": bars[0]["open"],
+            "session_open": bars[0]["ts"],
+        }
+    except (httpx.HTTPError, ValueError, IndexError, TypeError, KeyError) as e:
+        LAST_FETCH_ERRORS[ticker] = f"coinbase:{type(e).__name__}: {e}"
         return None
 
 
@@ -141,9 +175,10 @@ async def fetch_ticker(client: httpx.AsyncClient, ticker: str) -> dict | None:
             if attempt < max(0, config.FETCH_RETRIES - 1):
                 await asyncio.sleep(1.5 * (attempt + 1) + random.random())
         if asset_class(ticker) == "crypto":
-            bybit_data = await _fetch_bybit(client, ticker)
-            if bybit_data:
-                return bybit_data
+            for src in (_fetch_kraken, _fetch_coinbase):
+                data = await src(client, ticker)
+                if data:
+                    return data
         log.warning("fetch %s failed after retries: %s", ticker, last_err)
         return None
 
