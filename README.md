@@ -23,7 +23,7 @@ end — across equities, crypto, and forex.
 
 ```bash
 pip install -r requirements.txt
-uvicorn app.main:app --host 0.0.0.0 --port 8000
+uvicorn app.standalone:app --host 0.0.0.0 --port 8000
 # open http://localhost:8000
 ```
 
@@ -36,7 +36,7 @@ docker compose up --build
 Try it without a network first:
 
 ```bash
-DATA_MODE=demo uvicorn app.main:app --port 8000
+DATA_MODE=demo uvicorn app.standalone:app --port 8000
 ```
 
 ## Configuration (environment variables)
@@ -97,7 +97,7 @@ How it works on Vercel:
 - A per-warm-instance memory cache (25s TTL) shares fetched bars across
   requests in the same instance. No SQLite in live mode; demo mode uses an
   ephemeral `/tmp` database.
-- The original background-poller app (`app/main.py`, `docker compose up`) is
+- The original background-poller app (`app/standalone.py`, `docker compose up`) is
   untouched and remains the choice for a persistent server.
 
 Deploy:

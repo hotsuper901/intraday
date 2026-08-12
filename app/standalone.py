@@ -50,6 +50,12 @@ async def _worker():
 async def lifespan(app: FastAPI):
     db.init_db()
     log.info("mode=%s watchlist=%s", config.DATA_MODE, config.WATCHLIST)
+    if config.SERVERLESS:
+        # Running on a serverless platform (Vercel sets VERCEL=1): no
+        # background poller, no startup fetch. The root main.py entrypoint is
+        # the serverless app; this guard only prevents accidental resource use.
+        yield
+        return
     _last_refresh["summary"] = await fetcher.refresh_all()
     _last_refresh["ts"] = time.time()
     task = asyncio.create_task(_worker())
