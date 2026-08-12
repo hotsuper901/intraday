@@ -176,6 +176,16 @@
     }
 
     window.__loadPage = loadScreener;
+    // filter drawer toggle (phones)
+    const ft = $("#filter-toggle");
+    const fp = $("#filters-panel");
+    if (ft && fp) {
+      ft.addEventListener("click", () => {
+        fp.classList.toggle("open");
+        ft.textContent = fp.classList.contains("open") ? "Filters ▴" : "Filters ▾";
+      });
+      if (window.__device === "phone") fp.classList.remove("open");
+    }
     for (const inp of ["#f-min-change", "#f-min-relvol", "#f-min-price", "#f-max-price", "#f-direction"]) {
       $(inp).addEventListener("input", () => { clearTimeout(timer); timer = setTimeout(loadScreener, 300); });
     }
@@ -246,7 +256,7 @@
       drawCandles(
         $("#chart"), tickerData.bars.slice(-78),
         tickerData.metrics.vwap,
-        (txt) => { $("#chart-readout").textContent = txt; }
+        (txt) => { $("#chart-readout").textContent = txt || "tap a candle to inspect"; }
       );
     };
 

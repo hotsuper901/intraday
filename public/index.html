@@ -25,7 +25,8 @@
     <section class="panel">
       <div class="panel-head">
         <h1>Screener <span class="sub">equities · crypto · forex — find the movers that matter</span></h1>
-        <div class="filters">
+        <button class="btn small filter-toggle" id="filter-toggle">Filters ▾</button>
+        <div class="filters" id="filters-panel">
           <label>Min chg % <input type="number" id="f-min-change" step="0.1" placeholder="0.0"></label>
           <label>Min rel vol <input type="number" id="f-min-relvol" step="0.1" placeholder="0"></label>
           <label>Min price <input type="number" id="f-min-price" step="0.01" placeholder="0"></label>

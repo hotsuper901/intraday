@@ -395,3 +395,40 @@ a:hover { color: #67e8f9; }
   .topbar { flex-wrap: nowrap; }
   main { padding: 8px 8px 60px; }
 }
+
+/* ============================================================
+   Phone UX polish — filter drawer, tap chart, decluttered header
+   ============================================================ */
+.filter-toggle { display: none; }
+
+@media (max-width: 640px) {
+  #mode-pill { display: none; }               /* declutter: market state pill only */
+
+  /* filters become a collapsible drawer */
+  .filter-toggle { display: inline-flex; }
+  .panel-head { align-items: center; }
+  .filters { display: none; }
+  .filters.open {
+    display: grid;
+    width: 100%;
+    margin-top: 10px;
+    padding-top: 12px;
+    border-top: 1px solid var(--line);
+  }
+
+  /* chart readout: bottom bar, thumb-friendly, tap to inspect */
+  .chart-wrap { position: relative; }
+  .chart-readout {
+    top: auto; left: 8px; right: 8px; bottom: 8px;
+    font-size: 13px; text-align: center;
+    padding: 9px 12px; border-radius: 10px;
+    background: rgba(10, 16, 29, 0.88);
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+  }
+
+  /* compact header row: brand left, status + refresh right */
+  .topbar { flex-wrap: nowrap; }
+  .topbar-right { flex: 0 0 auto; }
+  .brand { flex: 1 1 auto; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+}

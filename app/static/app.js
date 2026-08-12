@@ -181,6 +181,17 @@
     document.querySelectorAll("th[data-sort]").forEach((th) =>
       th.addEventListener("click", () => { sort = th.dataset.sort; loadScreener(); }));
 
+    // filter drawer toggle (phones)
+    const ft = $("#filter-toggle");
+    const fp = $("#filters-panel");
+    if (ft && fp) {
+      ft.addEventListener("click", () => {
+        fp.classList.toggle("open");
+        ft.textContent = fp.classList.contains("open") ? "Filters ▴" : "Filters ▾";
+      });
+      if (window.__device === "phone") fp.classList.remove("open");
+    }
+
     loadScreener();
     setInterval(loadScreener, 20000);
   }
@@ -231,7 +242,7 @@
       drawCandles(
         $("#chart"), tickerData.bars.slice(-78),
         tickerData.metrics.vwap,
-        (txt) => { $("#chart-readout").textContent = txt; }
+        (txt) => { $("#chart-readout").textContent = txt || "tap a candle to inspect"; }
       );
     };
 

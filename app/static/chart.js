@@ -26,7 +26,7 @@
     }
 
     const padL = 10, padR = 64, padT = 12, padB = 18;
-    const volH = 56, gap = 6;
+    const volH = cssW < 500 ? 0 : 56, gap = cssW < 500 ? 0 : 6;
     const plotW = cssW - padL - padR;
     const priceH = cssH - padT - padB - volH - gap;
 
@@ -102,11 +102,10 @@
       }
     }
 
-    // hover
-    canvas.onmousemove = function (e) {
-      const rect = canvas.getBoundingClientRect();
-      const mx = e.clientX - rect.left;
-      const idx = Math.round((mx - padL) / (plotW / bars.length) - 0.5);
+    // hover (desktop) + touch inspection (phones)
+    let hideTimer = null;
+    function showAt(clientX) {
+      const idx = Math.round((clientX - padL) / (plotW / bars.length) - 0.5);
       if (idx < 0 || idx >= bars.length) return;
       const b = bars[idx];
       if (onHover) {
@@ -115,7 +114,22 @@
           `C ${b.close.toFixed(2)}  V ${(b.volume / 1000).toFixed(0)}k`
         );
       }
+    }
+    canvas.onmousemove = (e) => {
+      showAt(e.clientX - canvas.getBoundingClientRect().left);
     };
+    canvas.onmouseleave = () => { if (onHover) onHover(null); };
+    canvas.addEventListener("touchstart", (e) => {
+      showAt(e.touches[0].clientX - canvas.getBoundingClientRect().left);
+      clearTimeout(hideTimer);
+    }, { passive: true });
+    canvas.addEventListener("touchmove", (e) => {
+      showAt(e.touches[0].clientX - canvas.getBoundingClientRect().left);
+      clearTimeout(hideTimer);
+    }, { passive: true });
+    canvas.addEventListener("touchend", () => {
+      hideTimer = setTimeout(() => { if (onHover) onHover(null); }, 1600);
+    });
   }
 
   window.drawCandles = drawCandles;
