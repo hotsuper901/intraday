@@ -231,8 +231,7 @@
         ["RelVol", `${fmtNum(m.rel_vol)}x`],
         ["ATR", `${fmtNum(m.atr_pct)}%`],
         ["RSI", `${fmtNum(m.rsi, 1)}`],
-        ["VWAP", `${fmtNum(m.vwap)}`],
-        ["VWAP Δ", `${signed(m.vwap_dist_pct)}%`],
+        ["VWAP (Δ)", `${fmtNum(m.vwap)} (${signed(m.vwap_dist_pct)}%)`],
         ["Day vol", fmtVol(m.day_volume)],
       ].map(([k, v]) => `<div class="card"><div class="k">${k}</div><div class="v">${v}</div></div>`).join("");
     };
