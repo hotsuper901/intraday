@@ -75,7 +75,15 @@ async def _fetch_kraken(client: httpx.AsyncClient, ticker: str) -> dict | None:
         if data.get("error"):
             LAST_FETCH_ERRORS[ticker] = f"kraken:{data['error']}"
             return None
-        rows = data["result"][pair]
+        # Kraken returns its canonical pair name (e.g. XXBTZUSD) regardless of
+        # the alias we request — take the first real OHLC entry.
+        rows = None
+        for k, v in data.get("result", {}).items():
+            if k != "last":
+                rows = v
+                break
+        if not rows:
+            return None
         bars = [
             {
                 "ts": int(float(r[0])),
