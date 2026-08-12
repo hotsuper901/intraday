@@ -238,6 +238,12 @@ async def api_signal(req: SignalRequest):
             bars_5m, meta, source = await bars_for(t, client, interval=5)
             bars_1m = bars_5m
             degraded = True
+        elif config.SERVERLESS and asset_class(t) == "fx":
+            # Jina's free tier truncates the huge 1m payloads; FX signals run
+            # on the real 5m series for both timeframes instead.
+            bars_5m, meta, source = await bars_for(t, client, interval=5)
+            bars_1m = bars_5m
+            degraded = True
         else:
             bars_1m, meta, source = await bars_for(t, client, interval=1)
             if len(bars_1m) < 26:
