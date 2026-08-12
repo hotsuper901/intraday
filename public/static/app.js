@@ -156,8 +156,8 @@
             <td class="num" data-label="Price">${fmtNum(r.price)}</td>
             <td class="num ${cls(r.change_pct)}" data-label="Chg %">${signed(r.change_pct)}%</td>
             <td class="num ${cls(r.from_open_pct)}" data-label="Open %">${signed(r.from_open_pct)}%</td>
-            <td class="num ${cls(r.rel_vol - 1)}" data-label="RelVol">${fmtNum(r.rel_vol)}x</td>
-            <td class="num" data-label="ATR %">${fmtNum(r.atr_pct)}%</td>
+            <td class="num ${cls(r.rel_vol - 1)}" data-label="RelVol">${r.rel_vol == null ? "—" : fmtNum(r.rel_vol) + "x"}</td>
+            <td class="num" data-label="ATR %">${r.atr_pct == null ? "—" : fmtNum(r.atr_pct) + "%"}</td>
             <td class="num ${r.rsi > 70 ? "pos" : r.rsi < 30 ? "neg" : ""}" data-label="RSI">${fmtNum(r.rsi, 1)}</td>
             <td class="num ${cls(r.vwap_dist_pct)}" data-label="VWAP Δ">${signed(r.vwap_dist_pct)}%</td>
             <td class="num" data-label="Day Vol">${fmtVol(r.day_volume)}</td>

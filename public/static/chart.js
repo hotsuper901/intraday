@@ -33,7 +33,7 @@
       if (!arr || arr.length === 0) {
         ctx.fillStyle = "#8b98ad";
         ctx.font = "13px sans-serif";
-        ctx.fillText("no bars yet", 12, 24);
+        ctx.fillText("no intraday bars — live quotes only", 12, 24);
         return;
       }
 

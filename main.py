@@ -29,7 +29,15 @@ from pydantic import BaseModel, Field  # noqa: E402
 
 from app import config, db, indicators, risk  # noqa: E402
 from app import screener as screenlib  # noqa: E402
-from app.fetcher import ET, LAST_FETCH_ERRORS, asset_class, fetch_demo, fetch_ticker, market_state  # noqa: E402
+from app.fetcher import (  # noqa: E402
+    ET,
+    LAST_FETCH_ERRORS,
+    asset_class,
+    fetch_cnbc_quote,
+    fetch_demo,
+    fetch_ticker,
+    market_state,
+)
 
 app = FastAPI(title="Intraday Radar")
 
@@ -59,6 +67,14 @@ async def bars_for(ticker: str, client: httpx.AsyncClient) -> tuple[list, dict |
             source = "demo"
             db.init_db()
             data = await asyncio.to_thread(fetch_demo, ticker)
+        if not data:
+            # Quote-level fallback for equities/FX: keeps the screener alive
+            # with real prices when Yahoo refuses datacenter IPs.
+            q = await fetch_cnbc_quote(client, ticker)
+            if q:
+                meta = {"name": q["name"], "quote": q}
+                _INSTANCE_CACHE[ticker] = (now, [], meta, "quote")
+                return [], meta, "quote"
 
     if not data:
         _INSTANCE_CACHE[ticker] = (now, [], None, "none")
@@ -74,7 +90,29 @@ async def bars_for(ticker: str, client: httpx.AsyncClient) -> tuple[list, dict |
 
 
 def metrics_for(ticker: str, meta: dict | None, bars: list, source: str = "live") -> dict:
-    m = indicators.compute_metrics(ticker, bars, meta.get("prev_close") if meta else None)
+    if source == "quote" and meta and meta.get("quote"):
+        q = meta["quote"]
+        price = q.get("price")
+        open_p = q.get("open")
+        m = {
+            "ticker": ticker,
+            "bars": 0,
+            "last_ts": q.get("ts"),
+            "price": price,
+            "change_pct": q.get("change_pct"),
+            "from_open_pct": round((price - open_p) / open_p * 100, 2) if price and open_p else None,
+            "vwap_dist_pct": None,
+            "rel_vol": None,
+            "atr_pct": None,
+            "rsi": None,
+            "vwap": None,
+            "day_high": q.get("high"),
+            "day_low": q.get("low"),
+            "day_volume": q.get("volume"),
+            "session_open": open_p,
+        }
+    else:
+        m = indicators.compute_metrics(ticker, bars, meta.get("prev_close") if meta else None)
     m["name"] = (meta or {}).get("name") or ticker
     m["source"] = source
     m["asset"] = asset_class(ticker)
@@ -105,7 +143,7 @@ async def screener_rows() -> tuple[list[dict], int]:
     rows: list[dict] = []
     errors = 0
     for t, (bars, meta, source) in zip(config.WATCHLIST, results):
-        if not bars:
+        if not bars and source != "quote":
             errors += 1
             continue
         rows.append(metrics_for(t, meta, bars, source))
@@ -149,7 +187,7 @@ async def api_ticker(symbol: str = Query(..., min_length=1), bars_limit: int = Q
     t = symbol.upper().strip()
     async with httpx.AsyncClient() as client:
         bars, meta, source = await bars_for(t, client)
-    if not bars:
+    if not bars and source != "quote":
         raise HTTPException(status_code=404, detail=f"no data for {t} — add it to WATCHLIST")
     state, mins = market_state()
     return JSONResponse(
@@ -160,6 +198,7 @@ async def api_ticker(symbol: str = Query(..., min_length=1), bars_limit: int = Q
             "data_mode": config.DATA_MODE,
             "market_state": state,
             "minutes_in_session": mins,
+            "quote_only": source == "quote",
         },
         headers=_CACHE_30S,
     )
@@ -178,7 +217,7 @@ async def api_risk(req: RiskRequest):
     t = req.ticker.upper().strip()
     async with httpx.AsyncClient() as client:
         bars, meta, source = await bars_for(t, client)
-    if not bars:
+    if not bars and source != "quote":
         raise HTTPException(status_code=404, detail=f"no data for {t} — add it to WATCHLIST")
     m = metrics_for(t, meta, bars, source)
     state, mins = market_state(asset=m["asset"])

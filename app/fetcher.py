@@ -26,10 +26,12 @@ YAHOO_HOSTS = [
     "https://query2.finance.yahoo.com/v8/finance/chart/{ticker}",
 ]
 COOKIE_URL = "https://fc.yahoo.com"
+CNBC_QUOTE_URL = "https://quote.cnbc.com/quote-html-webservice/restQuote/symbolType/symbol"
 # US-friendly crypto sources (no key) — Yahoo, Binance, and Bybit all refuse
 # datacenter IPs like Vercel's; Kraken and Coinbase Exchange do not.
 KRAKEN_OHLC_URL = "https://api.kraken.com/0/public/OHLC"
 COINBASE_CANDLES_URL = "https://api.exchange.coinbase.com/products/{pair}/candles"
+KUCOIN_CANDLES_URL = "https://api.kucoin.com/api/v1/market/candles"
 CRYPTO_WINDOW = 288  # 24h of 5m bars
 
 KRAKEN_PAIRS = {
@@ -147,6 +149,131 @@ async def _fetch_coinbase(client: httpx.AsyncClient, ticker: str) -> dict | None
         return None
 
 
+async def _fetch_kucoin(client: httpx.AsyncClient, ticker: str) -> dict | None:
+    """Crypto OHLCV from KuCoin's public API (no key). Third fallback — covers
+    symbols missing from Kraken/Coinbase like BNB."""
+    sym = ticker.upper().split("-")[0] + "-USDT"
+    try:
+        resp = await client.get(
+            KUCOIN_CANDLES_URL,
+            params={"type": "5min", "symbol": sym},
+            headers={"User-Agent": config.USER_AGENT},
+            timeout=config.HTTP_TIMEOUT,
+        )
+        resp.raise_for_status()
+        rows = resp.json().get("data") or []
+        # KuCoin rows: [time, open, close, high, low, volume, turnover], newest first.
+        bars = [
+            {
+                "ts": int(r[0]),
+                "open": float(r[1]),
+                "close": float(r[2]),
+                "high": float(r[3]),
+                "low": float(r[4]),
+                "volume": float(r[5]),
+            }
+            for r in reversed(rows)
+        ]
+        bars = _trim_24h(bars)
+        if not bars:
+            return None
+        return {
+            "bars": bars,
+            "name": DEMO_NAMES.get(ticker, sym),
+            "prev_close": bars[0]["open"],
+            "session_open": bars[0]["ts"],
+        }
+    except (httpx.HTTPError, ValueError, IndexError, TypeError, KeyError) as e:
+        LAST_FETCH_ERRORS[ticker] = f"kucoin:{type(e).__name__}: {e}"
+        return None
+
+
+def _cnbc_symbol(ticker: str) -> str | None:
+    """Map to CNBC's quote symbol. USD pairs use the quote currency (EURUSD=X
+    → EUR=, USDJPY=X → JPY=); crosses use BASEQUOTE=; equities pass through."""
+    t = ticker.upper()
+    if not t.endswith("=X"):
+        return t
+    base, quote = t[:3], t[3:6]
+    if base == "USD":
+        return quote + "="
+    if quote == "USD":
+        return base + "="
+    return t.replace("=X", "=")
+
+
+async def fetch_cnbc_quote(client: httpx.AsyncClient, ticker: str) -> dict | None:
+    """Live quote for equities and FX from CNBC's public API (no key). No
+    intraday bars — used when Yahoo refuses so the screener stays populated."""
+    sym = _cnbc_symbol(ticker)
+    if not sym:
+        return None
+    try:
+        resp = await client.get(
+            CNBC_QUOTE_URL,
+            params={"symbols": sym, "requestMethod": "itv", "noform": "1"},
+            headers={"User-Agent": config.USER_AGENT},
+            timeout=config.HTTP_TIMEOUT,
+        )
+        resp.raise_for_status()
+        row = resp.json()["FormattedQuoteResult"]["FormattedQuote"][0]
+        if row.get("code") not in (None, 0, "0"):
+            return None
+
+        def _f(v, default=None):
+            if v is None or str(v).upper() == "UNCH":
+                return default
+            try:
+                return float(v)
+            except ValueError:
+                return default
+
+        last_val = row.get("last")
+        if last_val is None or str(last_val).upper() == "UNCH":
+            # Illiquid moments: fall back to the previous close.
+            last_val = row.get("previous_day_closing") or row.get("open")
+        price = _f(last_val)
+        if price is None:
+            return None
+        open_p = _f(row.get("open"), price)
+        high = _f(row.get("high"), price)
+        low = _f(row.get("low"), price)
+        chg_pct = None
+        raw_chg = row.get("change_pct")
+        if raw_chg and str(raw_chg).upper() != "UNCH":
+            try:
+                chg_pct = round(float(str(raw_chg).replace("%", "")), 2)
+            except ValueError:
+                chg_pct = None
+        volume = None
+        raw_vol = row.get("volume")
+        if raw_vol:
+            try:
+                volume = int(str(raw_vol).replace(",", ""))
+            except ValueError:
+                volume = None
+        ts = None
+        raw_ts = row.get("last_time")
+        if raw_ts:
+            try:
+                ts = int(datetime.fromisoformat(raw_ts).timestamp())
+            except ValueError:
+                ts = None
+        return {
+            "price": price,
+            "open": open_p,
+            "high": high,
+            "low": low,
+            "change_pct": chg_pct,
+            "volume": volume,
+            "name": row.get("name") or row.get("shortName") or ticker,
+            "ts": ts,
+        }
+    except (httpx.HTTPError, ValueError, IndexError, TypeError, KeyError) as e:
+        LAST_FETCH_ERRORS[ticker] = f"cnbc:{type(e).__name__}: {e}"
+        return None
+
+
 async def fetch_ticker(client: httpx.AsyncClient, ticker: str) -> dict | None:
     """Returns {'bars': [...], 'name': str, 'prev_close': float, 'session_open': int}
     or None on any failure. Retries with backoff, rotates hosts, bootstraps
@@ -183,7 +310,7 @@ async def fetch_ticker(client: httpx.AsyncClient, ticker: str) -> dict | None:
             if attempt < max(0, config.FETCH_RETRIES - 1):
                 await asyncio.sleep(1.5 * (attempt + 1) + random.random())
         if asset_class(ticker) == "crypto":
-            for src in (_fetch_kraken, _fetch_coinbase):
+            for src in (_fetch_kraken, _fetch_coinbase, _fetch_kucoin):
                 data = await src(client, ticker)
                 if data:
                     return data
