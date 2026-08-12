@@ -404,7 +404,9 @@ async def _fetch_yahoo_via_edge(client: httpx.AsyncClient, ticker: str, interval
     vercel_url = os.environ.get("VERCEL_URL", "")
     if not vercel_url:
         return None
-    yahoo_url = YAHOO_HOSTS[0].format(ticker=ticker) + f"?range=1d&interval={interval}m"
+    # Yahoo serves only a thin window for FX on anonymous 1d requests — 5d
+    # reliably returns full bars; trim to the day below.
+    yahoo_url = YAHOO_HOSTS[0].format(ticker=ticker) + f"?range=5d&interval={interval}m"
     try:
         resp = await client.get(
             f"https://{vercel_url}/api/edge-fetch",
@@ -414,7 +416,12 @@ async def _fetch_yahoo_via_edge(client: httpx.AsyncClient, ticker: str, interval
         if resp.status_code != 200:
             LAST_FETCH_ERRORS[ticker] = f"edge:http {resp.status_code}"
             return None
-        return _parse_chart(ticker, resp.json())
+        data = _parse_chart(ticker, resp.json())
+        if data:
+            keep = 288 if interval >= 5 else 1440
+            data["bars"] = data["bars"][-keep:]
+            data["session_open"] = data["bars"][0]["ts"]
+        return data
     except (httpx.HTTPError, ValueError, KeyError, IndexError, TypeError) as e:
         LAST_FETCH_ERRORS[ticker] = f"edge:{type(e).__name__}: {e}"
         return None
