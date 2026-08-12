@@ -38,6 +38,7 @@ from app.fetcher import (  # noqa: E402
     fetch_ticker,
     market_state,
 )
+from app.fetcher import _fetch_finnhub_quote as fetch_finnhub_quote  # noqa: E402
 
 app = FastAPI(title="Intraday Radar")
 
@@ -75,9 +76,9 @@ async def bars_for(ticker: str, client: httpx.AsyncClient) -> tuple[list, dict |
             db.init_db()
             data = await asyncio.to_thread(fetch_demo, ticker)
         if not data:
-            # Quote-level fallback for equities/FX: keeps the screener alive
-            # with real prices when Yahoo refuses datacenter IPs.
-            q = await fetch_cnbc_quote(client, ticker)
+            # Quote-level fallback: Finnhub (key) then CNBC — keeps the
+            # screener alive with real prices when candles are unavailable.
+            q = await fetch_finnhub_quote(client, ticker) or await fetch_cnbc_quote(client, ticker)
             if q:
                 meta = {"name": q["name"], "quote": q}
                 _INSTANCE_CACHE[ticker] = (now, [], meta, "quote")
@@ -281,7 +282,7 @@ def api_status():
     state, mins = market_state()
     return JSONResponse(
         {
-            "version": "v13",
+            "version": "v14",
             "mode": config.DATA_MODE,
             "watchlist": config.WATCHLIST,
             "market_state": state,

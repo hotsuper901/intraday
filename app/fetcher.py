@@ -36,6 +36,17 @@ COINBASE_CANDLES_URL = "https://api.exchange.coinbase.com/products/{pair}/candle
 KUCOIN_CANDLES_URL = "https://api.kucoin.com/api/v1/market/candles"
 NASDAQ_CHART_URL = "https://api.nasdaq.com/api/quote/{sym}/chart"
 JINA_BASE = "https://r.jina.ai/"
+FINNHUB_CANDLE_URL = "https://finnhub.io/api/v1/{endpoint}/candle"
+FINNHUB_QUOTE_URL = "https://finnhub.io/api/v1/quote"
+_FINNHUB_CANDLES_DISABLED = False
+FINNHUB_FX_PAIRS = {
+    "EURUSD=X": "OANDA:EUR_USD", "GBPUSD=X": "OANDA:GBP_USD",
+    "USDJPY=X": "OANDA:USD_JPY", "AUDUSD=X": "OANDA:AUD_USD",
+    "USDCAD=X": "OANDA:USD_CAD", "USDCHF=X": "OANDA:USD_CHF",
+    "NZDUSD=X": "OANDA:NZD_USD", "EURGBP=X": "OANDA:EUR_GBP",
+    "EURJPY=X": "OANDA:EUR_JPY", "GBPJPY=X": "OANDA:GBP_JPY",
+    "USDMXN=X": "OANDA:USD_MXN", "USDCNY=X": "OANDA:USD_CNY",
+}
 CRYPTO_WINDOW = 288  # 24h of 5m bars
 
 KRAKEN_PAIRS = {
@@ -189,6 +200,105 @@ async def _fetch_kucoin(client: httpx.AsyncClient, ticker: str) -> dict | None:
         }
     except (httpx.HTTPError, ValueError, IndexError, TypeError, KeyError) as e:
         LAST_FETCH_ERRORS[ticker] = f"kucoin:{type(e).__name__}: {e}"
+        return None
+
+
+def _finnhub_symbol(ticker: str) -> tuple[str, str | None]:
+    """(endpoint, symbol) for Finnhub's candle API."""
+    cls = asset_class(ticker)
+    if cls == "fx":
+        return "forex", FINNHUB_FX_PAIRS.get(ticker.upper())
+    if cls == "crypto":
+        return "crypto", "BINANCE:" + ticker.upper().split("-")[0] + "USDT"
+    return "stock", ticker.upper()
+
+
+async def _fetch_finnhub(client: httpx.AsyncClient, ticker: str) -> dict | None:
+    """Real 5m OHLCV via a Finnhub API key. Note: Finnhub's free plan does
+    NOT include candle endpoints — this activates automatically if the key
+    ever has access. A circuit breaker stops retrying after the first 403."""
+    global _FINNHUB_CANDLES_DISABLED
+    if not config.FINNHUB_KEY or _FINNHUB_CANDLES_DISABLED:
+        return None
+    endpoint, sym = _finnhub_symbol(ticker)
+    if not sym:
+        return None
+    try:
+        resp = await client.get(
+            FINNHUB_CANDLE_URL.format(endpoint=endpoint),
+            params={"symbol": sym, "resolution": 5, "count": 288, "token": config.FINNHUB_KEY},
+            timeout=config.HTTP_TIMEOUT,
+        )
+        if resp.status_code == 403:
+            _FINNHUB_CANDLES_DISABLED = True  # plan lacks candles; stop trying
+            return None
+        if resp.status_code != 200:
+            LAST_FETCH_ERRORS[ticker] = f"finnhub:http {resp.status_code}"
+            return None
+        data = resp.json()
+        if data.get("s") != "ok" or not data.get("t"):
+            LAST_FETCH_ERRORS[ticker] = f"finnhub:no_data ({data.get('s')})"
+            return None
+        bars = []
+        for i, ts in enumerate(data["t"]):
+            if data["c"][i] is None:
+                continue
+            bars.append(
+                {
+                    "ts": int(ts),
+                    "open": float(data["o"][i]),
+                    "high": float(data["h"][i]),
+                    "low": float(data["l"][i]),
+                    "close": float(data["c"][i]),
+                    "volume": float(data["v"][i] or 0),
+                }
+            )
+        if not bars:
+            return None
+        bars = bars[-288:]
+        return {
+            "bars": bars,
+            "name": DEMO_NAMES.get(ticker, sym),
+            "prev_close": bars[0]["open"],
+            "session_open": bars[0]["ts"],
+        }
+    except (httpx.HTTPError, ValueError, KeyError, IndexError, TypeError) as e:
+        LAST_FETCH_ERRORS[ticker] = f"finnhub:{type(e).__name__}: {e}"
+        return None
+
+
+async def _fetch_finnhub_quote(client: httpx.AsyncClient, ticker: str) -> dict | None:
+    """Live equity quote via Finnhub (free tier includes quotes): price, day
+    high/low/open, change vs previous close."""
+    if not config.FINNHUB_KEY or asset_class(ticker) != "equity":
+        return None
+    sym = ticker.upper()
+    try:
+        resp = await client.get(
+            FINNHUB_QUOTE_URL,
+            params={"symbol": sym, "token": config.FINNHUB_KEY},
+            timeout=config.HTTP_TIMEOUT,
+        )
+        if resp.status_code != 200:
+            return None
+        q = resp.json()
+        if q.get("c") is None:
+            return None
+        price = float(q["c"])
+        prev = q.get("pc")
+        chg = round((price - prev) / prev * 100, 2) if prev else None
+        return {
+            "price": price,
+            "open": float(q.get("o") or price),
+            "high": float(q.get("h") or price),
+            "low": float(q.get("l") or price),
+            "change_pct": chg,
+            "volume": None,
+            "name": sym,
+            "ts": q.get("t"),
+        }
+    except (httpx.HTTPError, ValueError, KeyError, IndexError, TypeError) as e:
+        LAST_FETCH_ERRORS[ticker] = f"finnhubq:{type(e).__name__}: {e}"
         return None
 
 
@@ -399,6 +509,10 @@ async def fetch_ticker(client: httpx.AsyncClient, ticker: str) -> dict | None:
     or None on any failure. Retries with backoff, rotates hosts, bootstraps
     cookies when rate-limited, and falls back to Binance for crypto."""
     async with _FETCH_SEM:
+        if config.FINNHUB_KEY:
+            finnhub_data = await _fetch_finnhub(client, ticker)
+            if finnhub_data:
+                return finnhub_data
         last_err: Exception | None = None
         for attempt in range(max(1, config.FETCH_RETRIES)):
             url = YAHOO_HOSTS[attempt % len(YAHOO_HOSTS)].format(ticker=ticker)
