@@ -26,6 +26,12 @@ YAHOO_HOSTS = [
     "https://query2.finance.yahoo.com/v8/finance/chart/{ticker}",
 ]
 COOKIE_URL = "https://fc.yahoo.com"
+BINANCE_KLINES_URL = "https://api.binance.com/api/v3/klines"
+BINANCE_24H_URL = "https://api.binance.com/api/v3/ticker/24hr"
+
+# Yahoo rate-limits hard when we fire dozens of parallel requests from a
+# datacenter IP. Cap concurrency across the whole process.
+_FETCH_SEM = asyncio.Semaphore(4)
 
 
 async def _bootstrap_cookies(client: httpx.AsyncClient) -> None:
@@ -37,38 +43,94 @@ async def _bootstrap_cookies(client: httpx.AsyncClient) -> None:
         pass
 
 
+def _binance_symbol(ticker: str) -> str | None:
+    """BTC-USD -> BTCUSDT. Binance pairs quote against USDT."""
+    if asset_class(ticker) != "crypto":
+        return None
+    return ticker.upper().split("-")[0] + "USDT"
+
+
+async def _fetch_binance(client: httpx.AsyncClient, ticker: str) -> dict | None:
+    """Crypto OHLCV from Binance's public API (no key). Used as fallback when
+    Yahoo refuses datacenter IPs."""
+    sym = _binance_symbol(ticker)
+    if not sym:
+        return None
+    try:
+        resp = await client.get(
+            BINANCE_KLINES_URL,
+            params={"symbol": sym, "interval": "5m", "limit": 120},
+            timeout=config.HTTP_TIMEOUT,
+        )
+        resp.raise_for_status()
+        klines = resp.json()
+        bars = [
+            {
+                "ts": int(k[0] // 1000),
+                "open": float(k[1]),
+                "high": float(k[2]),
+                "low": float(k[3]),
+                "close": float(k[4]),
+                "volume": float(k[5]),
+            }
+            for k in klines
+        ]
+        if not bars:
+            return None
+        prev_close = bars[0]["open"]
+        try:
+            t = await client.get(BINANCE_24H_URL, params={"symbol": sym}, timeout=config.HTTP_TIMEOUT)
+            if t.status_code == 200:
+                prev_close = float(t.json().get("prevClosePrice") or prev_close)
+        except Exception:
+            pass
+        return {
+            "bars": bars,
+            "name": DEMO_NAMES.get(ticker, sym),
+            "prev_close": prev_close,
+            "session_open": bars[0]["ts"],
+        }
+    except (httpx.HTTPError, ValueError, IndexError, TypeError, KeyError):
+        return None
+
+
 async def fetch_ticker(client: httpx.AsyncClient, ticker: str) -> dict | None:
     """Returns {'bars': [...], 'name': str, 'prev_close': float, 'session_open': int}
     or None on any failure. Retries with backoff, rotates hosts, bootstraps
-    cookies when rate-limited."""
-    last_err: Exception | None = None
-    for attempt in range(max(1, config.FETCH_RETRIES)):
-        url = YAHOO_HOSTS[attempt % len(YAHOO_HOSTS)].format(ticker=ticker)
-        try:
-            resp = await client.get(
-                url,
-                params={"range": "1d", "interval": "5m"},
-                headers={"User-Agent": config.USER_AGENT},
-                timeout=config.HTTP_TIMEOUT,
-            )
-            if resp.status_code == 429:
-                last_err = httpx.HTTPStatusError(
-                    "429 Too Many Requests", request=resp.request, response=resp
+    cookies when rate-limited, and falls back to Binance for crypto."""
+    async with _FETCH_SEM:
+        last_err: Exception | None = None
+        for attempt in range(max(1, config.FETCH_RETRIES)):
+            url = YAHOO_HOSTS[attempt % len(YAHOO_HOSTS)].format(ticker=ticker)
+            try:
+                resp = await client.get(
+                    url,
+                    params={"range": "1d", "interval": "5m"},
+                    headers={"User-Agent": config.USER_AGENT},
+                    timeout=config.HTTP_TIMEOUT,
                 )
-                await _bootstrap_cookies(client)
-            elif resp.status_code >= 400:
-                last_err = httpx.HTTPStatusError(
-                    f"{resp.status_code}", request=resp.request, response=resp
-                )
-            else:
-                resp.raise_for_status()
-                return _parse_chart(ticker, resp.json())
-        except (httpx.HTTPError, KeyError, ValueError, IndexError, TypeError) as e:
-            last_err = e
-        if attempt < 2:
-            await asyncio.sleep(2.0 * (attempt + 1) + random.random())
-    log.warning("fetch %s failed after retries: %s", ticker, last_err)
-    return None
+                if resp.status_code == 429:
+                    last_err = httpx.HTTPStatusError(
+                        "429 Too Many Requests", request=resp.request, response=resp
+                    )
+                    await _bootstrap_cookies(client)
+                elif resp.status_code >= 400:
+                    last_err = httpx.HTTPStatusError(
+                        f"{resp.status_code}", request=resp.request, response=resp
+                    )
+                else:
+                    resp.raise_for_status()
+                    return _parse_chart(ticker, resp.json())
+            except (httpx.HTTPError, KeyError, ValueError, IndexError, TypeError) as e:
+                last_err = e
+            if attempt < max(0, config.FETCH_RETRIES - 1):
+                await asyncio.sleep(1.5 * (attempt + 1) + random.random())
+        if asset_class(ticker) == "crypto":
+            binance_data = await _fetch_binance(client, ticker)
+            if binance_data:
+                return binance_data
+        log.warning("fetch %s failed after retries: %s", ticker, last_err)
+        return None
 
 
 def _parse_chart(ticker: str, payload: dict) -> dict | None:
