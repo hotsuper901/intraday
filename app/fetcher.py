@@ -414,9 +414,13 @@ async def fetch_yahoo_edge_batch(client: httpx.AsyncClient, tickers: list, inter
             timeout=min(config.HTTP_TIMEOUT + 6.0, 14.0),
         )
         if resp.status_code != 200:
-            LAST_FETCH_ERRORS["fx-batch"] = f"edge-batch:http {resp.status_code}"
+            LAST_FETCH_ERRORS["fx-batch"] = f"edge-batch:http {resp.status_code} {resp.text[:120]}"
             return {}
-        payload = resp.json()
+        try:
+            payload = resp.json()
+        except ValueError:
+            LAST_FETCH_ERRORS["fx-batch"] = f"edge-batch:http {resp.status_code} body={resp.text[:150]!r}"
+            return {}
         out: dict = {}
         for t, u in urls.items():
             entry = payload.get(u)
