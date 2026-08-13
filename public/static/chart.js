@@ -11,8 +11,8 @@
 
   const UP = "#26a69a";
   const DOWN = "#ef5350";
-  const GRID = "rgba(148, 163, 184, 0.09)";
-  const AXIS = "#5d6b82";
+  const GRID = "rgba(255, 255, 255, 0.05)";
+  const AXIS = "#8a8f98";
   const WICK_W = 1.2;
 
   function fmtTime(ts) {
@@ -75,7 +75,7 @@
       ctx.clearRect(0, 0, cssW, cssH);
 
       if (!arr || arr.length === 0) {
-        ctx.fillStyle = "#8b98ad";
+        ctx.fillStyle = "#8a8f98";
         ctx.font = "13px sans-serif";
         ctx.fillText("no intraday bars — live quotes only", 12, 24);
         return;
@@ -206,7 +206,7 @@
       if (opts.symbol) {
         ctx.save();
         ctx.globalAlpha = 0.05;
-        ctx.fillStyle = "#e8eef8";
+        ctx.fillStyle = "#ededef";
         ctx.font = "700 24px 'JetBrains Mono', 'SF Mono', Consolas, monospace";
         ctx.textAlign = "left";
         ctx.textBaseline = "alphabetic";
@@ -250,8 +250,8 @@
         if (cx + 14 + bw > cssW - padR) bx = cx - bw - 14;
         bx = Math.max(padL + 4, bx);
         let by = Math.max(padT + 4, cy - bh - 12);
-        ctx.fillStyle = "rgba(10, 16, 29, 0.94)";
-        ctx.strokeStyle = "rgba(148,163,184,.25)";
+        ctx.fillStyle = "rgba(10, 10, 12, 0.94)";
+        ctx.strokeStyle = "rgba(255,255,255,.18)";
         ctx.lineWidth = 1;
         roundRect(ctx, bx, by, bw, bh, 8);
         ctx.fill();
@@ -264,7 +264,7 @@
         ctx.fillText(fmtTime(hover.ts) + " · " + opts.interval, tx, by + 14);
         ctx.font = "10.5px 'JetBrains Mono', 'SF Mono', Consolas, monospace";
         const row = (label, val, color, ry) => {
-          ctx.fillStyle = "#8b98ad";
+          ctx.fillStyle = "#8a8f98";
           ctx.fillText(label, tx, ry);
           ctx.fillStyle = color || "#e8eef8";
           ctx.textAlign = "right";

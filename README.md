@@ -14,10 +14,15 @@ end — across equities, crypto, and forex.
   engine's timing rules adapt per symbol instead of assuming one session.
 - **Demo mode:** deterministic synthetic market data for all three asset
   classes, so the app works fully offline — useful for development or UI work.
-- **Views:** a filterable/sortable screener with asset badges, a per-ticker
-  detail page with a candlestick chart (canvas, zero frontend dependencies),
-  and an entry risk checker with position sizing (whole shares for equities,
-  fractional units for crypto/fx).
+- **Views:** a cinematic landing page, a filterable/sortable screener with
+  asset badges, a per-ticker detail page with a candlestick chart (canvas,
+  zero frontend dependencies), and an entry risk checker with position sizing
+  (whole shares for equities, fractional units for crypto/fx).
+- **Design system:** a Linear/Modern dark theme — near-black `#050506` canvas,
+  indigo `#5E6AD2` accent, layered ambient lighting (noise + 64px grid +
+  static light pools), multi-layer shadows and expo-out micro-interactions.
+  Pure hand-rolled CSS in `public/static/style.css`; no CSS framework, no
+  build step.
 - **Deploy:** single `docker compose up`, plain `uvicorn`, or Vercel (see
   below). No external services, no build step for the frontend.
 
@@ -55,8 +60,10 @@ DATA_MODE=demo uvicorn app.standalone:app --port 8000
 
 | Route                    | What it does                                        |
 | ------------------------ | --------------------------------------------------- |
-| `GET /`                  | Screener page                                       |
+| `GET /`                  | Landing page                                        |
+| `GET /screener`          | Screener page                                       |
 | `GET /ticker/{T}`        | Detail page for a symbol                            |
+| `GET /guide`             | Trading-signal manual (broker playbook)             |
 | `GET /api/screener`      | JSON rows; query params `min_change`, `min_relvol`, `min_price`, `max_price`, `sort` |
 | `GET /api/ticker/{T}`    | JSON metrics + recent bars                          |
 | `POST /api/risk`         | `{ticker, entry?, stop?, account?, risk_pct?}` → verdict, reasons, share size |

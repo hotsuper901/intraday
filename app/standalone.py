@@ -9,11 +9,10 @@ from datetime import datetime
 from pathlib import Path
 
 import httpx
-from fastapi import FastAPI, HTTPException, Query, Request
+from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.gzip import GZipMiddleware
-from fastapi.responses import HTMLResponse
+from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
-from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel, Field
 from starlette.responses import Response
 
@@ -24,8 +23,10 @@ log = logging.getLogger("main")
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(name)s %(levelname)s %(message)s")
 
 # Absolute paths so the module can be imported from any working directory.
+# Pages and assets live in the repo-level public/ dir — the same files the
+# serverless entrypoint (main.py) serves, so the UI has one source of truth.
 _APP_DIR = Path(__file__).resolve().parent
-templates = Jinja2Templates(directory=str(_APP_DIR / "templates"))
+_PUBLIC_DIR = _APP_DIR.parent / "public"
 
 
 # --------------------------------------------------------------------------
@@ -77,7 +78,7 @@ class CachedStaticFiles(StaticFiles):
 
 app = FastAPI(title="Intraday Radar", lifespan=lifespan)
 app.add_middleware(GZipMiddleware, minimum_size=500)
-app.mount("/static", CachedStaticFiles(directory=str(_APP_DIR / "static"), check_dir=False), name="static")
+app.mount("/static", CachedStaticFiles(directory=str(_PUBLIC_DIR / "static"), check_dir=False), name="static")
 
 
 # --------------------------------------------------------------------------
@@ -93,37 +94,27 @@ def _metrics_for(ticker: str, meta: dict | None, bars: list[dict]) -> dict:
 
 
 # --------------------------------------------------------------------------
-# Pages
+# Pages — same public/ files as the serverless entrypoint
 # --------------------------------------------------------------------------
-@app.get("/", response_class=HTMLResponse)
-def index(request: Request):
-    state, mins = fetcher.market_state()
-    return templates.TemplateResponse(
-        request, "screener.html",
-        {
-            "watchlist": config.WATCHLIST,
-            "data_mode": config.DATA_MODE,
-            "market_state": state,
-            "refresh_seconds": config.REFRESH_SECONDS,
-            "bar_count": db.bar_count(),
-        },
-    )
+@app.get("/")
+def index():
+    return FileResponse(str(_PUBLIC_DIR / "index.html"))
 
 
-@app.get("/ticker/{ticker}", response_class=HTMLResponse)
-def ticker_page(request: Request, ticker: str):
-    t = ticker.upper().strip()
-    state, mins = fetcher.market_state()
-    return templates.TemplateResponse(
-        request, "ticker.html",
-        {"ticker": t, "data_mode": config.DATA_MODE, "market_state": state},
-    )
+@app.get("/screener")
+def screener_page():
+    return FileResponse(str(_PUBLIC_DIR / "screener.html"))
 
 
-@app.get("/guide", response_class=HTMLResponse)
-def guide_page(request: Request):
+@app.get("/ticker/{ticker}")
+def ticker_page(ticker: str):
+    return FileResponse(str(_PUBLIC_DIR / "ticker.html"))
+
+
+@app.get("/guide")
+def guide_page():
     """Trading-signal manual: Binomo, Pocket Option, IQ Option and more."""
-    return templates.TemplateResponse(request, "guide.html", {})
+    return FileResponse(str(_PUBLIC_DIR / "guide.html"))
 
 
 # --------------------------------------------------------------------------

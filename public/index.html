@@ -1,100 +1,224 @@
 <!doctype html>
-<html lang="en" data-bs-theme="dark">
+<html lang="en">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="description" content="Real-time intraday screener for US equities, crypto and forex with multi-timeframe buy/sell signals, predictions and risk checks.">
-  <meta name="theme-color" content="#05080f">
-  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' y1='0' x2='1' y2='1'%3E%3Cstop offset='0' stop-color='%2322d3ee'/%3E%3Cstop offset='1' stop-color='%23818cf8'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='32' height='32' rx='8' fill='url(%23g)'/%3E%3Cpath d='M7 21 L12 13 L16 17 L20 10 L25 18' stroke='%2306131c' stroke-width='3' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
-  <meta property="og:title" content="Screener — Intraday Radar">
-  <meta property="og:description" content="Real-time intraday screener for US equities, crypto and forex with multi-timeframe buy/sell signals, predictions and risk checks.">
+  <meta name="description" content="Intraday Radar — real-time screener for US equities, crypto and forex with multi-timeframe buy/sell signals, price predictions and position-risk checks.">
+  <meta name="theme-color" content="#050506">
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' y1='0' x2='1' y2='1'%3E%3Cstop offset='0' stop-color='%235e6ad2'/%3E%3Cstop offset='1' stop-color='%238b93e8'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='32' height='32' rx='8' fill='url(%23g)'/%3E%3Cpath d='M7 21 L12 13 L16 17 L20 10 L25 18' stroke='%230a0a0c' stroke-width='3' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
+  <meta property="og:title" content="Intraday Radar — real-time trading signals">
+  <meta property="og:description" content="Real-time intraday screener for US equities, crypto and forex with multi-timeframe buy/sell signals, price predictions and risk checks.">
   <meta property="og:type" content="website">
-  <title>Screener — Intraday Radar</title>
-  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <title>Intraday Radar — real-time trading signals</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="dns-prefetch" href="https://fonts.gstatic.com">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <link rel="preload" href="/static/style.css?v=19" as="style">
-  <link rel="stylesheet" href="/static/style.css?v=19">
+  <link rel="preload" href="/static/style.css?v=20" as="style">
+  <link rel="stylesheet" href="/static/style.css?v=20">
 </head>
 <body>
   <header class="topbar">
     <a class="brand" href="/"><span class="logo">▮</span> Intraday <em>Radar</em></a>
     <span class="byline">by <b>M.S.J Hafiz</b></span>
-    <nav class="topnav">
-      <a href="/" class="topnav-link active">Screener</a>
+    <nav class="topnav" aria-label="Primary">
+      <a href="/screener" class="topnav-link">Screener</a>
       <a href="/guide" class="topnav-link">Guide</a>
     </nav>
     <div class="topbar-right">
-      <a class="btn btn-sm btn-outline-primary" href="/guide" title="How to trade the signal — Binomo, Pocket Option, IQ Option & more" aria-label="Trading manual">📘 <span class="btn-text">How to use</span></a>
-      <span class="pill badge rounded-pill" id="mode-pill">—</span>
-      <span class="pill badge rounded-pill" id="state-pill">—</span>
-      <span class="clock" id="et-clock">--:--:-- ET</span>
-      <button class="btn btn-primary" id="refresh-btn" aria-label="Refresh data">⟳ <span class="btn-text">Refresh</span></button>
+      <a class="btn" href="/screener">Open the screener</a>
     </div>
-        <div class="searchbox">
-        <input id="sym-search" type="text" placeholder="Search symbol… ( / )" autocomplete="off" aria-label="Search symbol" spellcheck="false">
-        <div class="sym-drop" id="sym-drop" role="listbox"></div>
+  </header>
+
+  <section class="hero">
+    <span class="hero-badge">Premium intraday terminal</span>
+    <h1 class="hero-title">See the move<br>before it <span class="accent-span">prints</span></h1>
+    <p class="hero-sub">Real-time screening for US equities, crypto and forex — with 1m + 5m confluence signals, price predictions and position-risk checks before you click buy.</p>
+    <div class="cta-row">
+      <a class="btn" href="/screener">Open the screener</a>
+      <a class="btn btn-ghost" href="/guide">Read the trading manual</a>
+    </div>
+    <p class="hero-hint">Free to use · no sign-up · <b>ET clock</b> on every page</p>
+
+    <div class="hero-visual" aria-hidden="true">
+      <div class="hv-head">
+        <span class="hv-title">Screener</span>
+        <span class="pill live">Live</span>
+        <span class="pill" style="margin-left:auto">USD · crypto · FX</span>
       </div>
-</header>
-  <div class="tape"><div class="tape-track" id="tape-track"></div></div>
-  <main class="container-xxl">
-    <section class="panel">
-      <div class="panel-head">
-        <h1>Screener <span class="sub">equities · crypto · forex — find the movers that matter</span></h1>
-        <button class="btn btn-sm btn-outline-primary filter-toggle" id="filter-toggle">Filters ▾</button>
-      </div>
-      <div class="filters" id="filters-panel">
-        <label>Min chg % <input type="number" class="form-control form-control-sm" id="f-min-change" step="0.1" placeholder="0.0"></label>
-        <label>Min rel vol <input type="number" class="form-control form-control-sm" id="f-min-relvol" step="0.1" placeholder="0"></label>
-        <label>Min price <input type="number" class="form-control form-control-sm" id="f-min-price" step="0.01" placeholder="0"></label>
-        <label>Max price <input type="number" class="form-control form-control-sm" id="f-max-price" step="0.01" placeholder="∞"></label>
-        <label>Direction
-          <select class="form-select form-select-sm" id="f-direction">
-            <option value="any" selected>Any</option>
-            <option value="up">Up</option>
-            <option value="down">Down</option>
-          </select>
-        </label>
-        <div class="filters-actions">
-          <button class="btn btn-sm btn-outline-primary" id="preset-movers">Movers</button>
-          <button class="btn btn-sm btn-outline-primary" id="preset-all">All</button>
-        </div>
-      </div>
-      <div class="breadth" id="breadth"></div>
-      <div class="table-scroll">
-      <table class="grid table align-middle" id="screener-table">
+      <table class="grid">
         <thead>
-          <tr>
-            <th>Ticker</th>
-            <th>Name</th>
-            <th class="num">Price</th>
-            <th data-sort="change_desc" class="num">Chg %</th>
-            <th class="num">Open %</th>
-            <th data-sort="relvol" class="num">RelVol</th>
-            <th data-sort="atr" class="num">ATR %</th>
-            <th data-sort="rsi" class="num">RSI</th>
-            <th class="num">VWAP Δ%</th>
-            <th class="num">Day Vol</th>
-            <th></th>
-          </tr>
+          <tr><th>Ticker</th><th>Name</th><th class="num">Price</th><th class="num">Chg %</th><th class="num">RSI</th></tr>
         </thead>
-        <tbody id="rows">
-          <tr><td colspan="11" class="empty">Loading…</td></tr>
+        <tbody>
+          <tr><td><span class="ticker-link">BTC-USD</span></td><td>Bitcoin</td><td class="num">97,412.60</td><td class="num pos">+2.84</td><td class="num">61.2</td></tr>
+          <tr><td><span class="ticker-link">EURUSD=X</span></td><td>EUR / USD</td><td class="num">1.08421</td><td class="num pos">+0.31</td><td class="num">58.4</td></tr>
+          <tr><td><span class="ticker-link">NVDA</span></td><td>NVIDIA</td><td class="num">141.05</td><td class="num pos">+1.72</td><td class="num">63.9</td></tr>
+          <tr><td><span class="ticker-link">GC=F</span></td><td>Gold</td><td class="num">2,644.80</td><td class="num neg">−0.44</td><td class="num">44.1</td></tr>
+          <tr><td><span class="ticker-link">TSLA</span></td><td>Tesla</td><td class="num">248.39</td><td class="num neg">−1.08</td><td class="num">41.7</td></tr>
         </tbody>
       </table>
+      <div class="hv-spark">
+        <svg viewBox="0 0 800 170" preserveAspectRatio="none">
+          <defs>
+            <linearGradient id="sparkStroke" x1="0" y1="0" x2="1" y2="0">
+              <stop offset="0" stop-color="#5e6ad2"/>
+              <stop offset="1" stop-color="#a5adf2"/>
+            </linearGradient>
+            <linearGradient id="sparkFill" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0" stop-color="#5e6ad2" stop-opacity="0.22"/>
+              <stop offset="1" stop-color="#5e6ad2" stop-opacity="0"/>
+            </linearGradient>
+          </defs>
+          <path d="M0,138 C30,136 45,118 70,120 C95,122 110,92 140,96 C170,100 185,110 215,104 C245,98 260,70 290,74 C320,78 335,92 365,88 C395,84 410,50 440,56 C470,62 485,76 515,70 C545,64 560,38 590,44 C620,50 640,58 665,52 C690,46 710,28 740,32 C760,34 780,28 800,26 L800,170 L0,170 Z" fill="url(#sparkFill)"/>
+          <path d="M0,138 C30,136 45,118 70,120 C95,122 110,92 140,96 C170,100 185,110 215,104 C245,98 260,70 290,74 C320,78 335,92 365,88 C395,84 410,50 440,56 C470,62 485,76 515,70 C545,64 560,38 590,44 C620,50 640,58 665,52 C690,46 710,28 740,32 C760,34 780,28 800,26" fill="none" stroke="url(#sparkStroke)" stroke-width="2.5" stroke-linecap="round"/>
+        </svg>
       </div>
-      <div class="panel-foot">
-        <span id="refresh-note">waiting for first fetch</span>
-        <span id="row-count"></span>
+    </div>
+
+    <div class="stat-strip">
+      <div class="stat-cell"><div class="stat-num">9</div><div class="stat-label">Indicators</div></div>
+      <div class="stat-cell"><div class="stat-num">30s</div><div class="stat-label">Signal refresh</div></div>
+      <div class="stat-cell"><div class="stat-num">3</div><div class="stat-label">Asset classes</div></div>
+      <div class="stat-cell"><div class="stat-num">24/5</div><div class="stat-label">Market coverage</div></div>
+    </div>
+  </section>
+
+  <section class="land-section">
+    <div class="section-head">
+      <span class="section-label">The toolkit</span>
+      <h2 class="section-title">Everything a scalper needs, nothing more</h2>
+      <p class="section-sub">Every signal is a confluence of nine indicators across two timeframes, sized to your account before you enter.</p>
+    </div>
+
+    <div class="bento">
+      <div class="bento-card span-4 span-2-rows">
+        <div class="bc-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 17l6-6 4 4 8-8"/><path d="M14 7h7v7"/></svg>
+        </div>
+        <h3>1m + 5m signal confluence</h3>
+        <p>Nine indicators — EMA stack, MACD, RSI, stochastic, Bollinger, VWAP, OBV, ATR and candlestick patterns — scored on both the 1-minute and 5-minute chart. Both timeframes agree and the panel calls it: STRONG BUY to STRONG SELL, with a confidence score and the reasons behind the call.</p>
+        <div class="verdict-row">
+          <span class="vbox strong-buy"><b>STRONG BUY</b>score ≥ +3.0</span>
+          <span class="vbox buy"><b>BUY</b>score ≥ +1.2</span>
+          <span class="vbox neutral"><b>NEUTRAL</b>−1.2 … +1.2</span>
+          <span class="vbox sell"><b>SELL</b>score ≤ −1.2</span>
+          <span class="vbox strong-sell"><b>STRONG SELL</b>score ≤ −3.0</span>
+        </div>
+        <div class="mini-conf conf-wrap">
+          <div class="conf-track"><div class="conf-bar" style="width:78%"></div></div>
+          <span class="conf-label">confidence 78%</span>
+        </div>
       </div>
-    </section>
-  </main>
-  <footer class="site-foot">
+
+      <div class="bento-card span-2">
+        <div class="bc-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M7 14l3-3 3 3 5-6"/></svg>
+        </div>
+        <h3>TradingView-style chart</h3>
+        <p>Candles, crosshair inspection and 1m / 5m / 15m timeframe toggles.</p>
+        <div class="hv-spark">
+          <svg viewBox="0 0 220 60" preserveAspectRatio="none">
+            <path d="M0,48 C20,44 30,32 50,36 C70,40 80,24 100,28 C120,32 130,18 150,22 C170,26 185,12 205,16 C212,17 216,13 220,12 L220,60 L0,60 Z" fill="#5e6ad2" opacity="0.15"/>
+            <path d="M0,48 C20,44 30,32 50,36 C70,40 80,24 100,28 C120,32 130,18 150,22 C170,26 185,12 205,16 C212,17 216,13 220,12" fill="none" stroke="#8b93e8" stroke-width="2" stroke-linecap="round"/>
+          </svg>
+        </div>
+      </div>
+
+      <div class="bento-card span-2">
+        <div class="bc-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l8 4v5c0 5-3.5 8-8 9-4.5-1-8-4-8-9V7l8-4z"/><path d="M9 12l2 2 4-4"/></svg>
+        </div>
+        <h3>Risk check</h3>
+        <p>Position size, stop distance and R:R computed from ATR — before you click buy.</p>
+        <div class="mini-rows">
+          <div class="mini-row">Account <b>$25,000</b></div>
+          <div class="mini-row">Risk / trade <b>1.0%</b></div>
+          <div class="mini-row">Stop distance <b>0.4%</b></div>
+          <div class="mini-row">Shares <b>171</b></div>
+        </div>
+      </div>
+
+      <div class="bento-card span-3">
+        <div class="bc-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/><path d="M8 11h6"/></svg>
+        </div>
+        <h3>Filter the movers that matter</h3>
+        <p>Sort by change, relative volume, ATR or RSI — and slice the watchlist by price range and direction. The breadth strip shows you how the whole tape is trading at a glance.</p>
+        <div class="chip-row">
+          <span class="chip">Min chg <b>1.5%</b></span>
+          <span class="chip">RelVol <b>1.5×</b></span>
+          <span class="chip pos">▲ 14 up</span>
+          <span class="chip neg">▼ 6 down</span>
+        </div>
+      </div>
+
+      <div class="bento-card span-3">
+        <div class="bc-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
+        </div>
+        <h3>Broker playbook</h3>
+        <p>Step-by-step mapping for every platform you trade: entry timing, expiry rules and pair matching.</p>
+        <div class="chip-row">
+          <span class="chip">Binomo</span>
+          <span class="chip">Pocket Option</span>
+          <span class="chip">IQ Option</span>
+          <span class="chip">Quotex</span>
+          <span class="chip">Olymp Trade</span>
+          <span class="chip">Deriv</span>
+          <span class="chip">MT5 / MT4</span>
+        </div>
+      </div>
+
+      <div class="bento-card span-2">
+        <div class="bc-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
+        </div>
+        <h3>Live coverage</h3>
+        <p>US equities in-session, crypto around the clock, FX 24/5 — market state pill and ET clock on every page.</p>
+        <div style="margin-top:14px"><span class="pill open">Market open</span></div>
+      </div>
+
+      <div class="bento-card span-2">
+        <div class="bc-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><circle cx="12" cy="12" r="8"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2"/></svg>
+        </div>
+        <h3>Prediction &amp; stops</h3>
+        <p>Entry, target and stop from support, resistance and 3× ATR — with the reward/risk ratio printed next to it.</p>
+        <div class="pred-trio">
+          <div class="pred-item"><span class="k">Entry</span><span class="v">141.05</span></div>
+          <div class="pred-item pos"><span class="k">Target</span><span class="v">142.90</span></div>
+          <div class="pred-item neg"><span class="k">Stop</span><span class="v">140.32</span></div>
+        </div>
+      </div>
+
+      <div class="bento-card span-2">
+        <div class="bc-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2L3 14h7l-1 8 10-12h-7l1-8z"/></svg>
+        </div>
+        <h3>30-second recalc</h3>
+        <p>The signal re-runs on every closed bar and every ⟳ Analyze press. Stale calls don't linger — the panel says what the tape says now.</p>
+        <div class="mini-rows">
+          <div class="mini-row">Last refresh <b class="pos">just now</b></div>
+          <div class="mini-row">Next recalc <b>00:12</b></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="cta-band">
+    <div class="cta-panel">
+      <h2>Stop guessing. Start reading the tape.</h2>
+      <p>Open the screener, filter for the movers, and let 1m + 5m confluence tell you when the odds are stacked — then size the trade before you take it.</p>
+      <div class="cta-row">
+        <a class="btn" href="/screener">Open the screener</a>
+        <a class="btn btn-ghost" href="/guide">How to trade the signal</a>
+      </div>
+    </div>
+  </section>
+
+  <footer class="site-foot land-foot">
     Intraday Radar <span class="sep">•</span> Crafted by <span class="credit">M.S.J Hafiz</span>
   </footer>
-  <script src="/static/chart.js?v=19" defer></script>
-  <script src="/static/app.js?v=19" defer></script>
 </body>
 </html>

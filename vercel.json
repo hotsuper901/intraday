@@ -6,8 +6,13 @@
       "permanent": true
     },
     {
+      "source": "/screener.html",
+      "destination": "/screener",
+      "permanent": true
+    },
+    {
       "source": "/ticker.html",
-      "destination": "/",
+      "destination": "/screener",
       "permanent": true
     }
   ],
@@ -32,7 +37,16 @@
       ]
     },
     {
-      "source": "/(guide|ticker|guide.html|ticker.html|index.html)",
+      "source": "/(guide|ticker|screener|guide.html|ticker.html|screener.html|index.html)",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "public, max-age=60"
+        }
+      ]
+    },
+    {
+      "source": "/",
       "headers": [
         {
           "key": "Cache-Control",

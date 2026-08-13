@@ -457,7 +457,7 @@ def api_status():
     state, mins = market_state()
     return JSONResponse(
         {
-            "version": "v18",
+            "version": "v19",
             "mode": config.DATA_MODE,
             "watchlist": config.WATCHLIST,
             "market_state": state,
@@ -474,6 +474,11 @@ def api_status():
 # Static frontend (public/). Clean ticker route first; API routers above take
 # precedence over the catch-all mount.
 # --------------------------------------------------------------------------
+@app.get("/screener", include_in_schema=False)
+def screener_page():
+    return FileResponse(str(ROOT / "public" / "screener.html"), headers={"Cache-Control": "public, max-age=60"})
+
+
 @app.get("/ticker/{ticker}", include_in_schema=False)
 def ticker_page(ticker: str):
     return FileResponse(str(ROOT / "public" / "ticker.html"), headers={"Cache-Control": "public, max-age=60"})
