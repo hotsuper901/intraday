@@ -1,37 +1,7 @@
 {% extends "base.html" %}
 {% block title %}How to Use the Signal — Intraday Radar{% endblock %}
 {% block content %}
-<style>
-  .guide h2 { font-size: 15px; font-weight: 750; letter-spacing: -0.01em; margin: 26px 0 10px; display: flex; align-items: center; gap: 10px; }
-  .guide h2::before { content: ""; width: 8px; height: 8px; border-radius: 2px; background: var(--cyan); box-shadow: 0 0 12px rgba(34, 211, 238, 0.8); }
-  .guide p, .guide li { font-size: 13.5px; line-height: 1.65; color: var(--text2, #aab6ca); }
-  .guide ul, .guide ol { padding-left: 22px; }
-  .guide li { margin-bottom: 7px; }
-  .guide li b, .guide p b { color: var(--text, #e2e8f0); }
-  .guide .step { display: flex; gap: 14px; margin-bottom: 12px; }
-  .guide .step .n {
-    flex: 0 0 30px; height: 30px; border-radius: 9px; display: grid; place-items: center;
-    background: linear-gradient(135deg, rgba(34,211,238,.18), rgba(34,211,238,.05));
-    border: 1px solid rgba(34,211,238,.4); color: var(--cyan); font-weight: 800; font-size: 14px; font-family: var(--mono);
-  }
-  .guide .broker { border-left: 3px solid var(--cyan); padding-left: 16px; margin-bottom: 22px; }
-  .guide .broker h3 { font-size: 14px; font-weight: 750; margin: 0 0 6px; }
-  .guide .broker h3 .hint { font-weight: 500; color: var(--muted); font-size: 12px; }
-  .guide table.grid td, .guide table.grid th { padding: 8px 12px; font-size: 12.5px; }
-  .guide .verdict-demo { display: flex; gap: 8px; flex-wrap: wrap; margin: 10px 0 4px; }
-  .guide .vbox {
-    border: 1px solid rgba(148,163,184,.18); border-radius: 10px; padding: 8px 12px; font-size: 12px;
-    background: rgba(15,22,38,.6); font-family: var(--mono); white-space: nowrap;
-  }
-  .guide .vbox b { display: block; font-size: 13px; margin-bottom: 2px; }
-  .guide .strong-buy { color: #2ee6a8; border-color: rgba(46,230,168,.45); }
-  .guide .buy { color: var(--green); }
-  .guide .neutral { color: var(--muted); }
-  .guide .sell { color: var(--red); }
-  .guide .strong-sell { color: #ff8fa3; border-color: rgba(255,143,163,.45); }
-  .guide .warn { border: 1px solid rgba(251,191,36,.35); background: rgba(251,191,36,.06); border-radius: 10px; padding: 10px 14px; font-size: 12.5px; color: #d9c07a; margin-top: 10px; }
-  .guide .key { font-family: var(--mono); font-size: 11.5px; color: var(--cyan); }
-</style>
+
 <div class="crumbs"><a href="/">screener</a><span>guide</span></div>
 
 <div class="guide-layout">

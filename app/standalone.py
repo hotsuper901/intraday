@@ -10,10 +10,12 @@ from pathlib import Path
 
 import httpx
 from fastapi import FastAPI, HTTPException, Query, Request
+from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel, Field
+from starlette.responses import Response
 
 from . import config, db, fetcher, indicators, risk, screener, signals
 from .fetcher import ET
@@ -64,8 +66,18 @@ async def lifespan(app: FastAPI):
     task.cancel()
 
 
+class CachedStaticFiles(StaticFiles):
+    """Static assets with long-lived cache headers (versioned ?v=N URLs)."""
+
+    async def get_response(self, path: str, scope) -> Response:
+        resp = await super().get_response(path, scope)
+        resp.headers["Cache-Control"] = "public, max-age=31536000, immutable"
+        return resp
+
+
 app = FastAPI(title="Intraday Radar", lifespan=lifespan)
-app.mount("/static", StaticFiles(directory=str(_APP_DIR / "static"), check_dir=False), name="static")
+app.add_middleware(GZipMiddleware, minimum_size=500)
+app.mount("/static", CachedStaticFiles(directory=str(_APP_DIR / "static"), check_dir=False), name="static")
 
 
 # --------------------------------------------------------------------------

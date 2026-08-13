@@ -1,10 +1,44 @@
 {
   "redirects": [
-    { "source": "/index.html", "destination": "/", "permanent": true },
-    { "source": "/ticker.html", "destination": "/", "permanent": true }
+    {
+      "source": "/index.html",
+      "destination": "/",
+      "permanent": true
+    },
+    {
+      "source": "/ticker.html",
+      "destination": "/",
+      "permanent": true
+    }
   ],
   "rewrites": [
-    { "source": "/ticker/:symbol", "destination": "/ticker.html?symbol=:symbol" },
-    { "source": "/guide", "destination": "/guide.html" }
+    {
+      "source": "/ticker/:symbol",
+      "destination": "/ticker.html?symbol=:symbol"
+    },
+    {
+      "source": "/guide",
+      "destination": "/guide.html"
+    }
+  ],
+  "headers": [
+    {
+      "source": "/static/(.*)",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "public, max-age=31536000, immutable"
+        }
+      ]
+    },
+    {
+      "source": "/(guide|ticker|guide.html|ticker.html|index.html)",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "public, max-age=60"
+        }
+      ]
+    }
   ]
 }

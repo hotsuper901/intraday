@@ -23,9 +23,11 @@ os.environ.setdefault("DATA_MODE", "live")
 
 import httpx  # noqa: E402
 from fastapi import FastAPI, HTTPException, Query  # noqa: E402
+from fastapi.middleware.gzip import GZipMiddleware  # noqa: E402
 from fastapi.responses import FileResponse, JSONResponse  # noqa: E402
 from fastapi.staticfiles import StaticFiles  # noqa: E402
 from pydantic import BaseModel, Field  # noqa: E402
+from starlette.responses import Response  # noqa: E402
 
 from app import config, db, indicators, risk  # noqa: E402
 from app import screener as screenlib  # noqa: E402
@@ -44,6 +46,24 @@ from app.fetcher import (  # noqa: E402
 from app.fetcher import _fetch_finnhub_quote as fetch_finnhub_quote  # noqa: E402
 
 app = FastAPI(title="Intraday Radar")
+
+
+class CachedStaticFiles(StaticFiles):
+    """Static assets with long-lived cache headers. URLs are versioned with
+    ?v=N query strings in the HTML, so an immutable cache is always safe."""
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+    async def get_response(self, path: str, scope) -> Response:
+        resp = await super().get_response(path, scope)
+        resp.headers["Cache-Control"] = "public, max-age=31536000, immutable"
+        return resp
+
+
+# Compress text responses (HTML/JSON) for local + Docker runs; the Vercel
+# edge already serves brotli for the deployed app.
+app.add_middleware(GZipMiddleware, minimum_size=500)
 
 
 # --------------------------------------------------------------------------
@@ -456,17 +476,17 @@ def api_status():
 # --------------------------------------------------------------------------
 @app.get("/ticker/{ticker}", include_in_schema=False)
 def ticker_page(ticker: str):
-    return FileResponse(str(ROOT / "public" / "ticker.html"))
+    return FileResponse(str(ROOT / "public" / "ticker.html"), headers={"Cache-Control": "public, max-age=60"})
 
 
 @app.get("/guide", include_in_schema=False)
 def guide_page():
     """Trading-signal manual: how to apply the signal on Binomo, Pocket
     Option, IQ Option and other brokers."""
-    return FileResponse(str(ROOT / "public" / "guide.html"))
+    return FileResponse(str(ROOT / "public" / "guide.html"), headers={"Cache-Control": "public, max-age=60"})
 
 
-app.mount("/", StaticFiles(directory=str(ROOT / "public"), html=True, check_dir=False), name="frontend")
+app.mount("/", CachedStaticFiles(directory=str(ROOT / "public"), html=True, check_dir=False), name="frontend")
 
 
 if __name__ == "__main__":
