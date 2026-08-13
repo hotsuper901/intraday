@@ -18,6 +18,10 @@
   ],
   "rewrites": [
     {
+      "source": "/screener",
+      "destination": "/screener.html"
+    },
+    {
       "source": "/ticker/:symbol",
       "destination": "/ticker.html?symbol=:symbol"
     },
