@@ -33,6 +33,7 @@ from app import signals  # noqa: E402
 from app.fetcher import (  # noqa: E402
     ET,
     LAST_FETCH_ERRORS,
+    DEMO_NAMES,
     asset_class,
     fetch_cnbc_quote,
     fetch_demo,
@@ -234,10 +235,17 @@ async def api_screener(
 
 
 @app.get("/api/ticker")
-async def api_ticker(symbol: str = Query(..., min_length=1), bars_limit: int = Query(default=80, le=300)):
+async def api_ticker(
+    symbol: str = Query(..., min_length=1),
+    bars_limit: int = Query(default=80, le=300),
+    interval: int = Query(default=5, ge=1, le=15),
+):
     t = symbol.upper().strip()
+    iv = interval if interval in (1, 5) else 5
     async with httpx.AsyncClient(follow_redirects=True) as client:
-        bars, meta, source = await bars_for(t, client)
+        bars, meta, source = await bars_for(t, client, interval=iv)
+    if config.DATA_MODE == "demo":
+        iv = 5  # demo generator produces 5m bars only
     if not bars and source != "quote":
         raise HTTPException(status_code=404, detail=f"no data for {t} — add it to WATCHLIST")
     state, mins = market_state()
@@ -250,7 +258,25 @@ async def api_ticker(symbol: str = Query(..., min_length=1), bars_limit: int = Q
             "market_state": state,
             "minutes_in_session": mins,
             "quote_only": source == "quote",
+            "interval": iv,
         },
+        headers=_CACHE_30S,
+    )
+
+
+@app.get("/api/symbols")
+def api_symbols():
+    """Watchlist (ticker, name, asset) for the symbol search and pager."""
+    symbols = [
+        {
+            "ticker": t,
+            "name": DEMO_NAMES.get(t, t),
+            "asset": asset_class(t),
+        }
+        for t in config.WATCHLIST
+    ]
+    return JSONResponse(
+        {"symbols": symbols, "data_mode": config.DATA_MODE},
         headers=_CACHE_30S,
     )
 

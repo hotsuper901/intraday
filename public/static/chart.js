@@ -20,7 +20,11 @@
     return 8;
   }
   function fmtPx(p) {
-    return String(parseFloat(p.toFixed(smartDec(p))));
+    const s = String(parseFloat(p.toFixed(smartDec(p))));
+    const dot = s.indexOf(".");
+    const i = dot === -1 ? s : s.slice(0, dot);
+    const f = dot === -1 ? "" : s.slice(dot);
+    return i.replace(/\B(?=(\d{3})+(?!\d))/g, ",") + f;
   }
 
   const _state = new WeakMap(); // canvas -> { bars, raf }

@@ -867,3 +867,75 @@ html { scroll-behavior: smooth; scroll-padding-top: 76px; }
   #mode-pill { display: none; }
   .grid tbody tr:active { background: rgba(34, 211, 238, 0.06); }
 }
+
+/* ============================================================
+   Design 3.1 — pro capabilities: symbol search, timeframe
+   toggle, symbol pager, relative time
+   ============================================================ */
+.searchbox { position: relative; }
+.searchbox input {
+  width: 208px; height: 36px;
+  background: rgba(10, 16, 29, 0.85); border: 1px solid var(--line-strong);
+  border-radius: 10px; color: var(--text); padding: 0 12px 0 34px;
+  font-family: var(--mono); font-size: 13px;
+  transition: border-color .15s ease, box-shadow .15s ease, width .2s ease;
+  background-image: url("data:image/svg+xml;charset=UTF-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%238b98ad' stroke-width='2'%3E%3Ccircle cx='11' cy='11' r='7'/%3E%3Cpath d='m20 20-3.5-3.5'/%3E%3C/svg%3E");
+  background-repeat: no-repeat; background-position: 10px center;
+}
+.searchbox input:focus {
+  width: 240px; outline: none; border-color: var(--cyan);
+  box-shadow: 0 0 0 3px rgba(34, 211, 238, 0.14);
+}
+.sym-drop {
+  position: absolute; top: 42px; right: 0; width: 300px; z-index: 60;
+  background: rgba(13, 19, 33, 0.98); border: 1px solid var(--line-strong);
+  border-radius: 12px; box-shadow: var(--shadow); padding: 6px;
+  display: none; flex-direction: column; gap: 2px;
+  backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);
+}
+.sym-drop.open { display: flex; }
+.sym-opt {
+  display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  background: transparent; border: 0; border-radius: 8px; padding: 8px 10px;
+  color: var(--text); cursor: pointer; font-family: var(--sans); text-align: left;
+  transition: background .12s ease;
+}
+.sym-opt:hover, .sym-opt:focus-visible { background: rgba(34, 211, 238, 0.08); }
+.sym-opt .so-t { font-family: var(--mono); font-weight: 700; font-size: 13px; }
+.sym-opt .so-n { color: var(--muted); font-size: 11.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* chart toolbar: timeframe pills + pager */
+.chart-toolbar { display: flex; align-items: center; gap: 12px; margin: 10px 0 8px; }
+.tf-toggle {
+  display: inline-flex; gap: 2px; padding: 3px;
+  background: var(--card); border: 1px solid var(--line); border-radius: 10px;
+}
+.tf-btn {
+  border: 0; background: transparent; color: var(--muted);
+  font-family: var(--mono); font-size: 11.5px; font-weight: 700;
+  padding: 5px 13px; border-radius: 7px; cursor: pointer;
+  transition: color .15s ease, background .15s ease;
+}
+.tf-btn:hover { color: var(--text); }
+.tf-btn.active { color: #06131c; background: var(--grad); box-shadow: 0 2px 10px rgba(34, 211, 238, 0.25); }
+.tf-note { font-size: 11.5px; }
+
+.sym-pager { display: inline-flex; align-items: center; gap: 8px; margin-left: auto; }
+.sym-pager .pg-btn {
+  width: 30px; height: 30px; border-radius: 8px; border: 1px solid var(--line-strong);
+  background: var(--card); color: var(--muted); cursor: pointer;
+  font-size: 15px; line-height: 1; transition: color .15s ease, border-color .15s ease;
+}
+.sym-pager .pg-btn:hover { color: var(--cyan); border-color: var(--cyan); }
+.sym-pager span { font-family: var(--mono); font-size: 11.5px; }
+
+/* sticky topbar second row on phones: search gets its own full-width line */
+@media (max-width: 640px) {
+  .topbar { flex-wrap: wrap; row-gap: 8px; padding-bottom: 10px; }
+  .searchbox { order: 99; flex-basis: 100%; }
+  .searchbox input, .searchbox input:focus { width: 100%; height: 38px; }
+  .sym-drop { left: 0; right: 0; width: auto; }
+  .chart-toolbar { flex-wrap: wrap; gap: 8px; }
+  .sym-pager { margin-left: 0; }
+  .crumbs { flex-wrap: wrap; row-gap: 6px; }
+}

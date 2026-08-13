@@ -3,6 +3,12 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Intraday Radar signal panel: 1m+5m indicator confluence, price prediction and risk check for any symbol.">
+  <meta name="theme-color" content="#05080f">
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' y1='0' x2='1' y2='1'%3E%3Cstop offset='0' stop-color='%2322d3ee'/%3E%3Cstop offset='1' stop-color='%23818cf8'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='32' height='32' rx='8' fill='url(%23g)'/%3E%3Cpath d='M7 21 L12 13 L16 17 L20 10 L25 18' stroke='%2306131c' stroke-width='3' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
+  <meta property="og:title" content="Ticker — Intraday Radar">
+  <meta property="og:description" content="Intraday Radar signal panel: 1m+5m indicator confluence, price prediction and risk check for any symbol.">
+  <meta property="og:type" content="website">
   <title>Ticker — Intraday Radar</title>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -19,27 +25,45 @@
       <a href="/guide" class="topnav-link">Guide</a>
     </nav>
     <div class="topbar-right">
-      <a class="btn btn-sm btn-outline-primary" href="/guide" title="How to trade the signal — Binomo, Pocket Option, IQ Option & more">📘 <span class="btn-text">How to use</span></a>
+      <a class="btn btn-sm btn-outline-primary" href="/guide" title="How to trade the signal — Binomo, Pocket Option, IQ Option & more" aria-label="Trading manual">📘 <span class="btn-text">How to use</span></a>
       <span class="pill badge rounded-pill" id="mode-pill">—</span>
       <span class="pill badge rounded-pill" id="state-pill">—</span>
       <span class="clock" id="et-clock">--:--:-- ET</span>
-      <button class="btn btn-primary" id="refresh-btn">⟳ <span class="btn-text">Refresh</span></button>
+      <button class="btn btn-primary" id="refresh-btn" aria-label="Refresh data">⟳ <span class="btn-text">Refresh</span></button>
     </div>
-  </header>
+        <div class="searchbox">
+        <input id="sym-search" type="text" placeholder="Search symbol… ( / )" autocomplete="off" aria-label="Search symbol" spellcheck="false">
+        <div class="sym-drop" id="sym-drop" role="listbox"></div>
+      </div>
+</header>
   <div class="tape"><div class="tape-track" id="tape-track"></div></div>
   <main class="container-xxl">
-    <div class="crumbs"><a href="/">← screener</a><span>/</span><strong id="crumb-ticker">…</strong></div>
+    <div class="crumbs"><a href="/">← screener</a><span>/</span><strong id="crumb-ticker">…</strong>
+      <span class="sym-pager">
+        <button class="pg-btn" id="sym-prev" aria-label="Previous symbol" title="Previous symbol (←)">‹</button>
+        <span id="sym-pos" class="muted"></span>
+        <button class="pg-btn" id="sym-next" aria-label="Next symbol" title="Next symbol (→)">›</button>
+      </span>
+    </div>
 
     <section class="panel" id="ticker-panel">
       <div class="panel-head">
         <div>
           <h1 id="h-ticker">… <span class="muted" id="t-name"></span></h1>
           <div class="big-price">
-            <span id="t-price">—</span>
+            <span id="t-price" aria-live="polite">—</span>
             <span id="t-change" class="pill">—</span>
           </div>
         </div>
         <div class="stat-cards" id="stat-cards"></div>
+      </div>
+      <div class="chart-toolbar">
+        <div class="tf-toggle" id="tf-toggle" role="group" aria-label="Chart timeframe">
+          <button class="tf-btn" data-tf="1" title="1-minute candles">1m</button>
+          <button class="tf-btn active" data-tf="5" title="5-minute candles">5m</button>
+          <button class="tf-btn" data-tf="15" title="15-minute candles">15m</button>
+        </div>
+        <span class="tf-note muted" id="tf-note"></span>
       </div>
       <div class="chart-wrap">
         <div class="chart-live">● LIVE</div>
@@ -54,7 +78,7 @@
           <h1>Trading signal <span class="sub">1m + 5m multi-indicator confluence · prediction</span></h1>
           <button class="btn btn-primary" id="s-refresh">⟳ Analyze</button>
         </div>
-        <div class="signal-verdict neutral" id="signal-verdict"><span class="muted">analyzing…</span></div>
+        <div class="signal-verdict neutral" id="signal-verdict" aria-live="polite"><span class="muted">analyzing…</span></div>
         <div class="conf-wrap">
           <div class="conf-track progress"><div class="conf-bar progress-bar" id="conf-bar"></div></div>
           <span class="conf-label" id="conf-label"></span>

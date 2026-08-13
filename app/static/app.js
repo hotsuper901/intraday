@@ -48,14 +48,101 @@
   const rb = $("#refresh-btn");
   if (rb) {
     rb.addEventListener("click", async () => {
-      rb.textContent = "⟳ …";
+      const label = rb.querySelector(".btn-text");
+      if (label) label.textContent = "…";
+      else rb.textContent = "⟳ …";
       try { await fetch("/api/refresh", { method: "POST" }); } catch (e) {}
       setTimeout(() => {
         loadPage();
-        setTimeout(() => { rb.textContent = "⟳ Refresh"; }, 1500);
+        setTimeout(() => {
+          const l2 = rb.querySelector(".btn-text");
+          if (l2) l2.textContent = "Refresh";
+          else rb.textContent = "⟳ Refresh";
+        }, 1500);
       }, 1200);
     });
   }
+
+  // ======================================================================
+  // Shared pro features: symbol search + keyboard shortcuts
+  // ======================================================================
+  let SYMBOL_LIST = [];
+  const searchInput = $("#sym-search");
+  const searchDrop = $("#sym-drop");
+
+  function loadSymbols() {
+    fetch("/api/symbols").then((r) => r.json()).then((d) => {
+      SYMBOL_LIST = d.symbols || [];
+      if (window.__onSymbols) window.__onSymbols(SYMBOL_LIST);
+    }).catch(() => {});
+  }
+
+  if (searchInput) {
+    loadSymbols();
+    searchInput.addEventListener("input", () => {
+      const q = searchInput.value.trim().toUpperCase();
+      const matches = SYMBOL_LIST
+        .filter((s) => s.ticker.includes(q) || (s.name || "").toUpperCase().includes(q))
+        .slice(0, 8);
+      if (!searchDrop) return;
+      if (!q || !matches.length) {
+        searchDrop.innerHTML = "";
+        searchDrop.classList.remove("open");
+        return;
+      }
+      searchDrop.innerHTML = matches.map((s) => `
+        <button type="button" class="sym-opt" role="option" data-t="${esc(s.ticker)}">
+          <span class="so-t">${esc(s.ticker)}</span>
+          <span class="so-n">${esc(s.name)}</span>
+        </button>`).join("");
+      searchDrop.classList.add("open");
+    });
+    const goSearch = (t) => {
+      if (!t) return;
+      searchDrop.classList.remove("open");
+      searchInput.blur();
+      if (t === (window.__currentTicker || "")) {
+        if (window.__loadPage) window.__loadPage();
+      } else {
+        location.href = "/ticker/" + encodeURIComponent(t);
+      }
+    };
+    searchInput.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") {
+        e.preventDefault();
+        const first = searchDrop && searchDrop.querySelector(".sym-opt");
+        goSearch(first ? first.dataset.t : searchInput.value.trim().toUpperCase());
+      } else if (e.key === "Escape") {
+        searchDrop.classList.remove("open");
+      }
+    });
+    searchDrop.addEventListener("click", (e) => {
+      const btn = e.target.closest(".sym-opt");
+      if (btn) goSearch(btn.dataset.t);
+    });
+    document.addEventListener("click", (e) => {
+      if (searchDrop && !searchDrop.contains(e.target) && e.target !== searchInput) {
+        searchDrop.classList.remove("open");
+      }
+    });
+  }
+
+  // keyboard shortcuts: / search, r refresh, ←/→ symbol pager
+  document.addEventListener("keydown", (e) => {
+    if (e.target && e.target.matches("input, select, textarea")) return;
+    if (e.key === "/" && searchInput) {
+      e.preventDefault();
+      searchInput.focus();
+      searchInput.select();
+    } else if ((e.key === "r" || e.key === "R") && !e.ctrlKey && !e.metaKey && !e.altKey) {
+      const rb2 = $("#refresh-btn");
+      if (rb2) rb2.click();
+    } else if (e.key === "ArrowRight" && window.__pagerNav) {
+      window.__pagerNav(1);
+    } else if (e.key === "ArrowLeft" && window.__pagerNav) {
+      window.__pagerNav(-1);
+    }
+  });
 
   const fmtVol = (v) => v >= 1e9 ? (v / 1e9).toFixed(2) + "B" : v >= 1e6 ? (v / 1e6).toFixed(1) + "M" : v >= 1e3 ? (v / 1e3).toFixed(0) + "k" : String(v);
   // Adaptive decimals: sub-1 FX pairs (EURGBP 0.85495) need 5 places, a
@@ -68,12 +155,18 @@
     if (a >= 0.01) return 5;
     return 8;
   };
+  const addCommas = (s) => {
+    const dot = s.indexOf(".");
+    const i = dot === -1 ? s : s.slice(0, dot);
+    const f = dot === -1 ? "" : s.slice(dot);
+    return i.replace(/\B(?=(\d{3})+(?!\d))/g, ",") + f;
+  };
   const fmtNum = (x, d) => {
     if (x == null) return "—";
     const n = Number(x);
     if (!isFinite(n)) return "—";
     const s = n.toFixed(d == null ? smartDec(n) : d);
-    return d == null ? String(parseFloat(s)) : s;
+    return addCommas(d == null ? String(parseFloat(s)) : s);
   };
   const cls = (x) => (x > 0 ? "pos" : x < 0 ? "neg" : "muted");
   const signed = (x, d = 2) => (x == null ? "—" : (x > 0 ? "+" : "") + Number(x).toFixed(d));
@@ -119,6 +212,8 @@
   // ======================================================================
   if ($("#screener-table")) {
     let sort = "change_desc";
+    let lastRefresh = null;
+    let noteSuffix = "";
     let timer = null;
 
     const readFilters = () => ({
@@ -168,10 +263,14 @@
       }
       const note = $("#refresh-note");
       const stamp = data.refreshed_at
-        ? "bars refreshed " + new Date(data.refreshed_at * 1000).toLocaleTimeString()
+        ? "updated 0s ago"
         : "waiting for first refresh";
       const degraded = data.fetch_errors > 0 ? ` · ⚠ ${data.fetch_errors} symbols unreachable` : "";
-      if (note) note.textContent = stamp + degraded + " · " + (data.market_state || "").toUpperCase();
+      if (note) {
+        lastRefresh = data.refreshed_at || null;
+        noteSuffix = degraded + " · " + (data.market_state || "").toUpperCase();
+        note.textContent = stamp + noteSuffix;
+      }
       const rc = $("#row-count");
       if (rc) rc.textContent = data.rows.length + " symbols";
       const sp = $("#state-pill");
@@ -201,6 +300,8 @@
         th.classList.toggle("sorted", active);
         th.classList.toggle("asc", active && !sort.endsWith("_desc"));
         th.classList.toggle("desc", active && sort.endsWith("_desc"));
+        th.setAttribute("aria-sort", active
+          ? (sort.endsWith("_desc") ? "descending" : "ascending") : "none");
       });
     };
     document.querySelectorAll("th[data-sort]").forEach((th) =>
@@ -231,14 +332,73 @@
     loadTape();
     setInterval(loadScreener, 12000);
     setInterval(loadTape, 15000);
+    setInterval(() => {
+      const note = $("#refresh-note");
+      if (note && lastRefresh) {
+        const s = Math.max(0, Math.round(Date.now() / 1000 - lastRefresh));
+        note.textContent = `updated ${s}s ago` + noteSuffix;
+      }
+    }, 1000);
   }
 
   // ======================================================================
   // Ticker detail page
   // ======================================================================
   if ($("#ticker-panel")) {
-    const ticker = window.location.pathname.split("/").pop();
+    const ticker = (window.location.pathname.split("/").pop() || "").toUpperCase().trim();
+    window.__currentTicker = ticker;
     let tickerData = null;
+
+    // --- timeframe toggle (1m / 5m / 15m, persisted) -----------------------
+    const aggregate = (bars, n) => {
+      const out = [];
+      let cur = null, bucket = null;
+      for (const b of bars) {
+        const bk = Math.floor(b.ts / (n * 300));
+        if (bk !== bucket) {
+          cur = { ts: bk * n * 300, open: b.open, high: b.high, low: b.low, close: b.close, volume: b.volume || 0 };
+          out.push(cur);
+          bucket = bk;
+        } else {
+          cur.high = Math.max(cur.high, b.high);
+          cur.low = Math.min(cur.low, b.low);
+          cur.close = b.close;
+          cur.volume += b.volume || 0;
+        }
+      }
+      return out;
+    };
+    let tf = parseInt(localStorage.getItem("radar-tf") || "5", 10) || 5;
+    if (![1, 5, 15].includes(tf)) tf = 5;
+    const tfBtns = document.querySelectorAll("#tf-toggle .tf-btn");
+    const tfNote = $("#tf-note");
+    const setTf = (v, quiet) => {
+      tf = v;
+      localStorage.setItem("radar-tf", String(v));
+      tfBtns.forEach((b) => b.classList.toggle("active", parseInt(b.dataset.tf, 10) === v));
+      if (tfNote) tfNote.textContent = "";
+      if (!quiet) loadTicker();
+    };
+    tfBtns.forEach((b) => b.addEventListener("click", () => setTf(parseInt(b.dataset.tf, 10))));
+    setTf(tf, true);
+
+    // --- symbol pager (prev/next through the watchlist) ---------------------
+    const goSymbol = (delta) => {
+      const idx = SYMBOL_LIST.findIndex((s) => s.ticker === ticker);
+      if (idx < 0) return;
+      const next = SYMBOL_LIST[(idx + delta + SYMBOL_LIST.length) % SYMBOL_LIST.length];
+      if (next) location.href = "/ticker/" + encodeURIComponent(next.ticker);
+    };
+    const pagerPrev = $("#sym-prev");
+    const pagerNext = $("#sym-next");
+    if (pagerPrev) pagerPrev.addEventListener("click", () => goSymbol(-1));
+    if (pagerNext) pagerNext.addEventListener("click", () => goSymbol(1));
+    window.__pagerNav = goSymbol;
+    window.__onSymbols = (list) => {
+      const i = list.findIndex((s) => s.ticker === ticker);
+      const pos = $("#sym-pos");
+      if (pos && i >= 0) pos.textContent = `${i + 1} / ${list.length}`;
+    };
 
     const renderStats = (m) => {
       $("#t-name").textContent = m.name && m.name !== m.ticker ? "— " + m.name : "";
@@ -316,7 +476,9 @@
 
     async function loadTicker() {
       try {
-        const res = await fetch(`/api/ticker/${ticker}?bars_limit=160`);
+        const reqIv = tf === 1 ? 1 : 5;
+        const limit = tf === 15 ? 300 : 160;
+        const res = await fetch(`/api/ticker/${ticker}?bars_limit=${limit}&interval=${reqIv}`);
         if (!res.ok) {
           stopLiveSim();
           $("#t-name").textContent = "— no data. Add this symbol to WATCHLIST.";
@@ -324,6 +486,14 @@
           return;
         }
         tickerData = await res.json();
+        const served = tickerData.interval || 5;
+        if (tf === 1 && served !== 1) {
+          setTf(5, true);
+          if (tfNote) tfNote.textContent = "1m unavailable here — showing 5m";
+        } else if (tfNote) {
+          tfNote.textContent = "";
+        }
+        if (tf === 15) tickerData.bars = aggregate(tickerData.bars, 3);
         renderStats(tickerData.metrics);
         renderBarsTable(tickerData.bars);
         renderChart();

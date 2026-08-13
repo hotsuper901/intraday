@@ -1,18 +1,32 @@
 {% extends "base.html" %}
 {% block title %}{{ ticker }} — Intraday Radar{% endblock %}
 {% block content %}
-<div class="crumbs"><a href="/">← screener</a><span>/</span><strong>{{ ticker }}</strong></div>
+<div class="crumbs"><a href="/">← screener</a><span>/</span><strong>{{ ticker }}</strong>
+  <span class="sym-pager">
+    <button class="pg-btn" id="sym-prev" aria-label="Previous symbol" title="Previous symbol (←)">‹</button>
+    <span id="sym-pos" class="muted"></span>
+    <button class="pg-btn" id="sym-next" aria-label="Next symbol" title="Next symbol (→)">›</button>
+  </span>
+</div>
 
 <section class="panel" id="ticker-panel">
   <div class="panel-head">
     <div>
       <h1>{{ ticker }} <span class="muted" id="t-name"></span></h1>
       <div class="big-price">
-        <span id="t-price">—</span>
+        <span id="t-price" aria-live="polite">—</span>
         <span id="t-change" class="pill">—</span>
       </div>
     </div>
     <div class="stat-cards" id="stat-cards"></div>
+  </div>
+  <div class="chart-toolbar">
+    <div class="tf-toggle" id="tf-toggle" role="group" aria-label="Chart timeframe">
+      <button class="tf-btn" data-tf="1" title="1-minute candles">1m</button>
+      <button class="tf-btn active" data-tf="5" title="5-minute candles">5m</button>
+      <button class="tf-btn" data-tf="15" title="15-minute candles">15m</button>
+    </div>
+    <span class="tf-note muted" id="tf-note"></span>
   </div>
       <div class="chart-wrap">
         <div class="chart-live">● LIVE</div>
@@ -27,7 +41,7 @@
           <h1>Trading signal <span class="sub">1m + 5m multi-indicator confluence · prediction</span></h1>
           <button class="btn btn-primary" id="s-refresh">⟳ Analyze</button>
         </div>
-        <div class="signal-verdict neutral" id="signal-verdict"><span class="muted">analyzing…</span></div>
+        <div class="signal-verdict neutral" id="signal-verdict" aria-live="polite"><span class="muted">analyzing…</span></div>
         <div class="conf-wrap">
           <div class="conf-track progress"><div class="conf-bar progress-bar" id="conf-bar"></div></div>
           <span class="conf-label" id="conf-label"></span>

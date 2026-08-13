@@ -146,14 +146,24 @@ def api_screener(
 
 
 @app.get("/api/ticker/{ticker}")
-def api_ticker(ticker: str, bars_limit: int = Query(default=80, le=300)):
+def api_ticker(ticker: str, bars_limit: int = Query(default=80, le=300), interval: int = Query(default=5, ge=1, le=15)):
     t = ticker.upper().strip()
     meta = db.all_meta().get(t)
     bars = db.bars_for(t, limit=bars_limit)
     if not bars:
         raise HTTPException(status_code=404, detail=f"no data for {t} — add it to WATCHLIST")
     m = _metrics_for(t, meta, bars)
-    return {"metrics": m, "bars": bars, "name": meta.get("name") if meta else t}
+    return {"metrics": m, "bars": bars, "name": meta.get("name") if meta else t, "interval": 5}
+
+
+@app.get("/api/symbols")
+def api_symbols():
+    """Watchlist (ticker, name, asset) for the symbol search and pager."""
+    symbols = [
+        {"ticker": t, "name": fetcher.DEMO_NAMES.get(t, t), "asset": fetcher.asset_class(t)}
+        for t in config.WATCHLIST
+    ]
+    return {"symbols": symbols, "data_mode": config.DATA_MODE}
 
 
 class SignalRequest(BaseModel):
