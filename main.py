@@ -50,14 +50,18 @@ app = FastAPI(title="Intraday Radar")
 
 class CachedStaticFiles(StaticFiles):
     """Static assets with long-lived cache headers. URLs are versioned with
-    ?v=N query strings in the HTML, so an immutable cache is always safe."""
+    ?v=N query strings in the HTML, so an immutable cache is always safe.
+    HTML documents are excluded — they must revalidate so theme/feature
+    updates are visible immediately instead of stuck behind a year-long
+    immutable browser copy."""
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
     async def get_response(self, path: str, scope) -> Response:
         resp = await super().get_response(path, scope)
-        resp.headers["Cache-Control"] = "public, max-age=31536000, immutable"
+        if not path.lower().endswith(".html"):
+            resp.headers["Cache-Control"] = "public, max-age=31536000, immutable"
         return resp
 
 
@@ -472,23 +476,29 @@ def api_status():
 
 # --------------------------------------------------------------------------
 # Static frontend (public/). Clean ticker route first; API routers above take
-# precedence over the catch-all mount.
+# precedence over the catch-all mount. HTML pages always revalidate — never
+# cached immutably — so design changes reach browsers immediately.
 # --------------------------------------------------------------------------
+@app.get("/", include_in_schema=False)
+def index_page():
+    return FileResponse(str(ROOT / "public" / "index.html"), headers={"Cache-Control": "public, max-age=0, must-revalidate"})
+
+
 @app.get("/screener", include_in_schema=False)
 def screener_page():
-    return FileResponse(str(ROOT / "public" / "screener.html"), headers={"Cache-Control": "public, max-age=60"})
+    return FileResponse(str(ROOT / "public" / "screener.html"), headers={"Cache-Control": "public, max-age=0, must-revalidate"})
 
 
 @app.get("/ticker/{ticker}", include_in_schema=False)
 def ticker_page(ticker: str):
-    return FileResponse(str(ROOT / "public" / "ticker.html"), headers={"Cache-Control": "public, max-age=60"})
+    return FileResponse(str(ROOT / "public" / "ticker.html"), headers={"Cache-Control": "public, max-age=0, must-revalidate"})
 
 
 @app.get("/guide", include_in_schema=False)
 def guide_page():
     """Trading-signal manual: how to apply the signal on Binomo, Pocket
     Option, IQ Option and other brokers."""
-    return FileResponse(str(ROOT / "public" / "guide.html"), headers={"Cache-Control": "public, max-age=60"})
+    return FileResponse(str(ROOT / "public" / "guide.html"), headers={"Cache-Control": "public, max-age=0, must-revalidate"})
 
 
 app.mount("/", CachedStaticFiles(directory=str(ROOT / "public"), html=True, check_dir=False), name="frontend")
