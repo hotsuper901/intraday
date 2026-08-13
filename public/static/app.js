@@ -606,6 +606,7 @@
           <div class="pred-item neg"><span class="k">Stop ${p.stop != null && p.stop < p.entry ? "▼" : p.stop != null ? "▲" : ""}</span><span class="v">${p.stop != null ? fmtNum(p.stop) : "—"}</span></div>
           <div class="pred-item"><span class="k">R:R</span><span class="v">${p.rr != null ? "1 : " + p.rr : "—"}</span></div>`;
       }
+      prefillRisk(p);
       const rs = $("#signal-reasons");
       if (rs) rs.innerHTML = (s.reasons || []).map((r) => `<li>${esc(r)}</li>`).join("");
       const chips = $("#sig-chips");
@@ -623,6 +624,99 @@
         chips.innerHTML = items.map((x) => `<span class="chip">${esc(x)}</span>`).join("");
       }
     }
+
+    // --- position risk check ----------------------------------------------
+    const riskBtn = $("#r-run");
+    const riskVerdict = $("#risk-verdict");
+    const riskReasons = $("#risk-reasons");
+    const riskSizing = $("#risk-sizing");
+    const rawNum = (x) => (x == null ? "" : String(x));
+
+    function setRiskBusy(busy) {
+      if (!riskBtn) return;
+      riskBtn.disabled = busy;
+      riskBtn.textContent = busy ? "Checking…" : "Check risk";
+    }
+
+    function riskError(msg) {
+      if (riskVerdict) {
+        riskVerdict.hidden = false;
+        riskVerdict.className = "verdict INVALID";
+        riskVerdict.textContent = msg;
+      }
+      if (riskReasons) riskReasons.innerHTML = "";
+    }
+
+    function prefillRisk(p) {
+      if (!p || p.entry == null) return;
+      const entryEl = $("#r-entry");
+      const stopEl = $("#r-stop");
+      // Only prefill fields the trader hasn't touched, and use raw numbers
+      // (no thousands separators) so parseFloat reads them correctly.
+      if (entryEl && !entryEl.value) entryEl.value = rawNum(p.entry);
+      if (stopEl && !stopEl.value && p.stop != null) stopEl.value = rawNum(p.stop);
+    }
+
+    async function runRisk() {
+      const account = parseFloat($("#r-account").value);
+      const riskPct = parseFloat($("#r-risk").value);
+      const entryRaw = $("#r-entry").value.trim();
+      const stopRaw = $("#r-stop").value.trim();
+      if (!(account > 0)) return riskError("Account must be greater than 0.");
+      if (!(riskPct > 0 && riskPct <= 10)) return riskError("Risk must be between 0.1% and 10%.");
+      if (!stopRaw) return riskError("Enter a stop — the signal panel prefills one once it loads.");
+      const entry = entryRaw ? parseFloat(entryRaw) : null;
+      const stop = parseFloat(stopRaw);
+      if (entryRaw && !(entry > 0)) return riskError("Entry must be a positive price.");
+      if (!(stop > 0)) return riskError("Stop must be a positive price.");
+      if (entry != null && stop >= entry) return riskError("Stop must be below entry.");
+      setRiskBusy(true);
+      try {
+        const res = await fetch("/api/risk", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ ticker, account, risk_pct: riskPct, entry, stop }),
+        });
+        if (!res.ok) {
+          const d = await res.json().catch(() => ({}));
+          throw new Error((d && (d.detail || d.message)) || "http " + res.status);
+        }
+        renderRisk(await res.json());
+      } catch (e) {
+        riskError("risk check failed — " + e.message);
+      } finally {
+        setRiskBusy(false);
+      }
+    }
+
+    function renderRisk(r) {
+      if (riskVerdict) {
+        riskVerdict.hidden = false;
+        riskVerdict.className = "verdict " + (r.verdict || "INVALID");
+        const size = r.shares != null
+          ? fmtNum(r.shares) + (r.capped ? " units (capped)" : " units")
+          : "no position";
+        riskVerdict.textContent = (r.verdict || "—") + " · " + size;
+      }
+      if (riskReasons) riskReasons.innerHTML = (r.reasons || []).map((x) => `<li>${esc(x)}</li>`).join("");
+      if (riskSizing) {
+        riskSizing.hidden = false;
+        const parts = [];
+        if (r.dollar_risk != null) parts.push(`risk <b>$${fmtNum(r.dollar_risk)}</b>`);
+        if (r.stop_dist_pct != null) parts.push(`stop distance <b>${signed(r.stop_dist_pct)}%</b>`);
+        if (r.entry != null) parts.push(`entry <b>${fmtNum(r.entry)}</b>`);
+        if (r.stop != null) parts.push(`stop <b>${fmtNum(r.stop)}</b>`);
+        riskSizing.innerHTML = parts.map((x) => `<span>${x}</span>`).join("");
+      }
+    }
+
+    if (riskBtn) riskBtn.addEventListener("click", runRisk);
+    ["#r-account", "#r-risk", "#r-entry", "#r-stop"].forEach((sel) => {
+      const el = $(sel);
+      if (el) el.addEventListener("keydown", (e) => {
+        if (e.key === "Enter") { e.preventDefault(); runRisk(); }
+      });
+    });
 
     window.__loadPage = loadTicker;
     window.addEventListener("resize", renderChart);
