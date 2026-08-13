@@ -1,1 +1,9 @@
-{}
+{
+  "redirects": [
+    { "source": "/index.html", "destination": "/", "permanent": true },
+    { "source": "/ticker.html", "destination": "/", "permanent": true }
+  ],
+  "rewrites": [
+    { "source": "/ticker/:symbol", "destination": "/ticker.html?symbol=:symbol" }
+  ]
+}

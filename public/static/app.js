@@ -151,7 +151,7 @@
       } else {
         body.innerHTML = data.rows.map((r) => `
           <tr>
-            <td data-label="Symbol"><a class="ticker-link" href="/ticker.html?symbol=${esc(r.ticker)}">${esc(r.ticker)}</a>${r.asset === "fx" ? '<span class="tag">FX</span>' : r.asset === "crypto" ? '<span class="tag">Crypto</span>' : ""}${r.source === "demo" && data.data_mode === "live" ? ' <span title="live fetch failed — showing demo data" class="muted">*</span>' : ""}</td>
+            <td data-label="Symbol"><a class="ticker-link" href="/ticker/${esc(r.ticker)}">${esc(r.ticker)}</a>${r.asset === "fx" ? '<span class="tag">FX</span>' : r.asset === "crypto" ? '<span class="tag">Crypto</span>' : ""}${r.source === "demo" && data.data_mode === "live" ? ' <span title="live fetch failed — showing demo data" class="muted">*</span>' : ""}</td>
             <td class="muted" data-label="Name">${esc(r.name)}</td>
             <td class="num" data-label="Price">${fmtNum(r.price)}</td>
             <td class="num ${cls(r.change_pct)}" data-label="Chg %">${signed(r.change_pct)}%</td>
@@ -161,7 +161,7 @@
             <td class="num ${r.rsi > 70 ? "pos" : r.rsi < 30 ? "neg" : ""}" data-label="RSI">${fmtNum(r.rsi, 1)}</td>
             <td class="num ${cls(r.vwap_dist_pct)}" data-label="VWAP Δ">${signed(r.vwap_dist_pct)}%</td>
             <td class="num" data-label="Day Vol">${fmtVol(r.day_volume)}</td>
-            <td><a class="btn small" href="/ticker.html?symbol=${esc(r.ticker)}">Risk →</a></td>
+            <td><a class="btn small" href="/ticker/${esc(r.ticker)}">Risk →</a></td>
           </tr>`).join("");
       }
       const note = $("#refresh-note");
@@ -212,7 +212,11 @@
   // Ticker detail page
   // ======================================================================
   if ($("#ticker-panel")) {
-    const ticker = (new URLSearchParams(location.search).get("symbol") || "").toUpperCase().trim();
+    // Clean URLs: /ticker/BTC-USD (also accepts legacy ?symbol=BTC-USD)
+    const ticker = (
+      (new URLSearchParams(location.search).get("symbol") || "") ||
+      ((location.pathname.match(/\/ticker\/([^/]+)/) || [])[1] || "")
+    ).toUpperCase().trim();
     $("#crumb-ticker").textContent = ticker;
     $("#h-ticker").childNodes[0].textContent = ticker + " ";
     let tickerData = null;

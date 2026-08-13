@@ -23,7 +23,7 @@ os.environ.setdefault("DATA_MODE", "live")
 
 import httpx  # noqa: E402
 from fastapi import FastAPI, HTTPException, Query  # noqa: E402
-from fastapi.responses import JSONResponse  # noqa: E402
+from fastapi.responses import FileResponse, JSONResponse  # noqa: E402
 from fastapi.staticfiles import StaticFiles  # noqa: E402
 from pydantic import BaseModel, Field  # noqa: E402
 
@@ -388,10 +388,14 @@ def api_status():
 
 
 # --------------------------------------------------------------------------
-# Static frontend (public/). API routers above take precedence over this
-# catch-all mount. check_dir=False so import can never crash if public/ is
-# not in the function bundle (Vercel serves it from the CDN separately).
+# Static frontend (public/). Clean ticker route first; API routers above take
+# precedence over the catch-all mount.
 # --------------------------------------------------------------------------
+@app.get("/ticker/{ticker}", include_in_schema=False)
+def ticker_page(ticker: str):
+    return FileResponse(str(ROOT / "public" / "ticker.html"))
+
+
 app.mount("/", StaticFiles(directory=str(ROOT / "public"), html=True, check_dir=False), name="frontend")
 
 
