@@ -72,11 +72,22 @@ def test_resample_aggregates_5m():
 
 
 def test_confluence_boosts_confidence():
-    u = uptrend()
-    combined = signals.assess(u, u)
+    u = uptrend(120)
+    u2 = make_bars([100.0 + i * 0.3 for i in range(120)])  # independent uptrend
+    combined = signals.assess(u2, u)
     assert combined["confluence"] is True
     assert combined["verdict"] in ("BUY", "STRONG BUY")
     assert combined["confidence"] >= 60
+
+
+def test_same_series_never_counts_as_confluence():
+    # Degraded mode analyzes the same bars on both slots — that must not
+    # trigger the confluence boost or claim 1m+5m agreement.
+    u = uptrend(120)
+    r = signals.assess(u, u)
+    assert r["confluence"] is False
+    r2 = signals.assess(list(u), list(u))  # copies with identical data
+    assert r2["confluence"] is False
 
 
 def test_opposing_timeframes_are_neutral():

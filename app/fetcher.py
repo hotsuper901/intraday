@@ -409,8 +409,10 @@ async def fetch_yahoo_edge_batch(client: httpx.AsyncClient, tickers: list, inter
     )
     if not vercel_url or not tickers:
         return {}
+    # 1m history over 2d is huge and Yahoo caps it — 1d returns the full day.
+    rng = "1d" if interval == 1 else "2d"
     urls = {
-        t: YAHOO_HOSTS[0].format(ticker=t) + f"?range=2d&interval={interval}m"
+        t: YAHOO_HOSTS[0].format(ticker=t) + f"?range={rng}&interval={interval}m"
         for t in tickers
     }
     try:
@@ -439,7 +441,8 @@ async def fetch_yahoo_edge_batch(client: httpx.AsyncClient, tickers: list, inter
                     LAST_FETCH_ERRORS[t] = f"edge-batch:bad payload: {e}"
                     data = None
                 if data:
-                    data["bars"] = data["bars"][-288:]
+                    keep = 1440 if interval == 1 else 288
+                    data["bars"] = data["bars"][-keep:]
                     data["session_open"] = data["bars"][0]["ts"]
                     out[t] = data
         return out
@@ -459,8 +462,9 @@ async def _fetch_yahoo_via_edge(client: httpx.AsyncClient, ticker: str, interval
     if not vercel_url:
         return None
     # Yahoo serves only a thin window for FX on anonymous 1d requests — 2d
-    # reliably returns full bars without the 5d payload bloat.
-    yahoo_url = YAHOO_HOSTS[0].format(ticker=ticker) + f"?range=2d&interval={interval}m"
+    # reliably returns full bars without the 5d payload bloat. 1m uses 1d.
+    rng = "1d" if interval == 1 else "2d"
+    yahoo_url = YAHOO_HOSTS[0].format(ticker=ticker) + f"?range={rng}&interval={interval}m"
     try:
         resp = await client.get(
             f"https://{vercel_url}/api/edge-fetch",

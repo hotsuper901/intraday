@@ -51,17 +51,19 @@ app = FastAPI(title="Intraday Radar")
 _INSTANCE_CACHE: dict[tuple[str, int], tuple[float, list, dict | None, str]] = {}
 _TTL_SECONDS = 45.0
 _FX_BATCH_CACHE: dict = {"ts": 0.0, "results": {}}
+_FX_BATCH_1M_CACHE: dict = {"ts": 0.0, "results": {}}
 
 
-async def _fx_batch(client: httpx.AsyncClient) -> dict:
-    """One batched edge round-trip for the whole FX watchlist (cached ~20s)."""
-    global _FX_BATCH_CACHE
+async def _fx_batch(client: httpx.AsyncClient, interval: int = 5) -> dict:
+    """One batched edge round-trip for the whole FX watchlist (cached ~20s).
+    Serves both 5m and 1m Yahoo series through the edge proxy."""
+    cache = _FX_BATCH_CACHE if interval >= 5 else _FX_BATCH_1M_CACHE
     now = time.time()
-    if _FX_BATCH_CACHE["results"] and now - _FX_BATCH_CACHE["ts"] < 20:
-        return _FX_BATCH_CACHE["results"]
+    if cache["results"] and now - cache["ts"] < 20:
+        return cache["results"]
     tickers = [t for t in config.WATCHLIST if asset_class(t) == "fx"]
-    results = await fetch_yahoo_edge_batch(client, tickers)
-    _FX_BATCH_CACHE = {"ts": now, "results": results}
+    results = await fetch_yahoo_edge_batch(client, tickers, interval)
+    cache.update({"ts": now, "results": results})
     return results
 
 
@@ -80,9 +82,10 @@ async def bars_for(ticker: str, client: httpx.AsyncClient, interval: int = 5) ->
         data = await asyncio.to_thread(fetch_demo, ticker)
     else:
         data = None
-        if config.SERVERLESS and asset_class(ticker) == "fx" and interval == 5:
-            # One batched edge round-trip serves the whole FX watchlist.
-            batch = await _fx_batch(client)
+        if config.SERVERLESS and asset_class(ticker) == "fx":
+            # One batched edge round-trip serves the whole FX watchlist at
+            # the requested interval (5m screener bars or 1m signal bars).
+            batch = await _fx_batch(client, interval)
             data = batch.get(ticker)
         if not data:
             data = await fetch_ticker(client, ticker, interval)
@@ -269,11 +272,19 @@ async def api_signal(req: SignalRequest):
             bars_1m = bars_5m
             degraded = True
         elif config.SERVERLESS and asset_class(t) == "fx":
-            # Jina's free tier truncates the huge 1m payloads; FX signals run
-            # on the real 5m series for both timeframes instead.
-            bars_5m, meta, source = await bars_for(t, client, interval=5)
-            bars_1m = bars_5m
-            degraded = True
+            # Try the real 1m series first (edge-batched); Jina's free tier
+            # truncates huge 1m payloads, so fall back to 5m on both slots.
+            bars_1m, meta, source = await bars_for(t, client, interval=1)
+            if len(bars_1m) >= 26:
+                bars_5m = signals.resample(bars_1m, 5)
+                degraded = len(bars_5m) < 26
+                if degraded:
+                    bars_5m, meta, source = await bars_for(t, client, interval=5)
+                    bars_1m = bars_5m
+            else:
+                bars_5m, meta, source = await bars_for(t, client, interval=5)
+                bars_1m = bars_5m
+                degraded = True
         else:
             bars_1m, meta, source = await bars_for(t, client, interval=1)
             degraded = False

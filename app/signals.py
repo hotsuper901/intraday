@@ -360,6 +360,20 @@ def _rough_atr(bars: list[dict]) -> Optional[float]:
     return sum(trs) / len(trs) if trs else None
 
 
+def _same_series(a: list[dict], b: list[dict]) -> bool:
+    """True when the two bar lists are the same feed (degraded mode passes the
+    identical series to both timeframe slots). Confluence must not be claimed
+    from double-counting one series."""
+    if a is b:
+        return True
+    if len(a) != len(b) or not a:
+        return False
+    for i in (0, len(a) // 2, len(a) - 1):
+        if a[i]["ts"] != b[i]["ts"] or a[i]["close"] != b[i]["close"]:
+            return False
+    return True
+
+
 def assess(bars_1m: list[dict], bars_5m: list[dict]) -> dict:
     """Combined multi-timeframe signal with prediction."""
     a1 = _timeframe_analysis(bars_1m, "1m")
@@ -367,7 +381,12 @@ def assess(bars_1m: list[dict], bars_5m: list[dict]) -> dict:
     s1, s5 = a1["score"], a5["score"]
     combined = 0.62 * s5 + 0.38 * s1
     same_direction = (s1 > 0 and s5 > 0) or (s1 < 0 and s5 < 0)
-    confluence = same_direction and abs(s1) >= 1.2 and abs(s5) >= 1.2
+    confluence = (
+        not _same_series(bars_1m, bars_5m)
+        and same_direction
+        and abs(s1) >= 1.2
+        and abs(s5) >= 1.2
+    )
     if confluence:
         combined *= 1.1
     confidence = min(94, round(45 + abs(combined) * 9 + (8 if confluence else 0)))
