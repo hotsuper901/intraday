@@ -17,30 +17,49 @@ export default async function middleware(request: Request) {
     (u.startsWith("https://query1.finance.yahoo.com/") ||
       u.startsWith("https://query2.finance.yahoo.com/"));
 
+  const fetchBatch = async (rawUrls: unknown[]) => {
+    const urls = rawUrls.filter(isYahoo).slice(0, 20);
+    if (!urls.length) return null;
+    const results = await Promise.all(
+      urls.map(async (u) => {
+        try {
+          const r = await fetch(u, { headers: { "User-Agent": "Mozilla/5.0" } });
+          return { url: u, status: r.status, body: await r.json() };
+        } catch (e) {
+          return { url: u, status: 0, body: null };
+        }
+      })
+    );
+    const map: Record<string, unknown> = {};
+    for (const r of results) map[r.url] = r;
+    return new Response(JSON.stringify(map), {
+      status: 200,
+      headers: {
+        "Content-Type": "application/json",
+        "Cache-Control": "public, s-maxage=20, stale-while-revalidate=60",
+      },
+    });
+  };
+
+  // GET batch: /api/edge-fetch?urls=["...","..."]
+  const urlsParam = url.searchParams.get("urls");
+  if (urlsParam) {
+    try {
+      const parsed = JSON.parse(urlsParam);
+      const batched = await fetchBatch(Array.isArray(parsed) ? parsed : []);
+      if (batched) return batched;
+      return new Response("no urls", { status: 400 });
+    } catch (e) {
+      return new Response("bad urls param", { status: 400 });
+    }
+  }
+
   if (request.method === "POST") {
     try {
       const body = (await request.json()) as { urls?: string[] };
-      const urls = (body.urls || []).filter(isYahoo).slice(0, 20);
-      if (!urls.length) return new Response("no urls", { status: 400 });
-      const results = await Promise.all(
-        urls.map(async (u) => {
-          try {
-            const r = await fetch(u, { headers: { "User-Agent": "Mozilla/5.0" } });
-            return { url: u, status: r.status, body: await r.json() };
-          } catch (e) {
-            return { url: u, status: 0, body: null };
-          }
-        })
-      );
-      const map: Record<string, unknown> = {};
-      for (const r of results) map[r.url] = r;
-      return new Response(JSON.stringify(map), {
-        status: 200,
-        headers: {
-          "Content-Type": "application/json",
-          "Cache-Control": "public, s-maxage=20, stale-while-revalidate=60",
-        },
-      });
+      const batched = await fetchBatch(body.urls || []);
+      if (batched) return batched;
+      return new Response("no urls", { status: 400 });
     } catch (e) {
       return new Response("bad request", { status: 400 });
     }

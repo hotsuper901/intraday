@@ -408,9 +408,9 @@ async def fetch_yahoo_edge_batch(client: httpx.AsyncClient, tickers: list, inter
         for t in tickers
     }
     try:
-        resp = await client.post(
+        resp = await client.get(
             f"https://{vercel_url}/api/edge-fetch",
-            json={"urls": list(urls.values())},
+            params={"urls": json.dumps(list(urls.values()))},
             timeout=min(config.HTTP_TIMEOUT + 6.0, 14.0),
         )
         if resp.status_code != 200:

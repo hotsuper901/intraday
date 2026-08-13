@@ -156,28 +156,28 @@ def _norm_result(res):
 
 
 async def screener_rows() -> tuple[list[dict], int]:
-    async with httpx.AsyncClient() as client:
-        coros = [bars_for(t, client) for t in config.WATCHLIST]
+    async with httpx.AsyncClient(follow_redirects=True) as client:
+        tasks = [asyncio.create_task(bars_for(t, client)) for t in config.WATCHLIST]
         if config.SERVERLESS:
             # Vercel functions have a hard time budget: collect whatever
             # finishes in time, mark the rest as unreachable.
             try:
                 results = await asyncio.wait_for(
-                    asyncio.gather(*coros, return_exceptions=True), timeout=7.5
+                    asyncio.gather(*tasks, return_exceptions=True), timeout=7.5
                 )
             except asyncio.TimeoutError:
                 results = []
-                for c in coros:
-                    if c.done():
+                for task in tasks:
+                    if task.done():
                         try:
-                            results.append(_norm_result(c.result()))
+                            results.append(_norm_result(task.result()))
                         except BaseException:
                             results.append(([], None, "none"))
                     else:
-                        c.cancel()
+                        task.cancel()
                         results.append(([], None, "none"))
         else:
-            results = await asyncio.gather(*coros, return_exceptions=True)
+            results = await asyncio.gather(*tasks, return_exceptions=True)
         results = [_norm_result(r) for r in results]
     rows: list[dict] = []
     errors = 0
@@ -233,7 +233,7 @@ async def api_screener(
 @app.get("/api/ticker")
 async def api_ticker(symbol: str = Query(..., min_length=1), bars_limit: int = Query(default=80, le=300)):
     t = symbol.upper().strip()
-    async with httpx.AsyncClient() as client:
+    async with httpx.AsyncClient(follow_redirects=True) as client:
         bars, meta, source = await bars_for(t, client)
     if not bars and source != "quote":
         raise HTTPException(status_code=404, detail=f"no data for {t} — add it to WATCHLIST")
@@ -261,7 +261,7 @@ async def api_signal(req: SignalRequest):
     """Multi-timeframe buy/sell signal: 1m + 5m indicator confluence with a
     price prediction (entry, target, stop, R:R)."""
     t = req.ticker.upper().strip()
-    async with httpx.AsyncClient() as client:
+    async with httpx.AsyncClient(follow_redirects=True) as client:
         if config.DATA_MODE == "demo":
             # Demo generator produces 5m bars only — analyze those on both slots.
             bars_5m, meta, source = await bars_for(t, client, interval=5)
@@ -324,7 +324,7 @@ class RiskRequest(BaseModel):
 @app.post("/api/risk")
 async def api_risk(req: RiskRequest):
     t = req.ticker.upper().strip()
-    async with httpx.AsyncClient() as client:
+    async with httpx.AsyncClient(follow_redirects=True) as client:
         bars, meta, source = await bars_for(t, client)
     if not bars and source != "quote":
         raise HTTPException(status_code=404, detail=f"no data for {t} — add it to WATCHLIST")
