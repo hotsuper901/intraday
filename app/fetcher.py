@@ -440,7 +440,10 @@ async def _fetch_yahoo_via_edge(client: httpx.AsyncClient, ticker: str, interval
     """Yahoo chart data through Vercel's own edge middleware proxy. Edge IPs
     are shared with real users, so Yahoo cannot hard-block them the way it
     blocks serverless-function datacenter IPs."""
-    vercel_url = os.environ.get("VERCEL_URL", "")
+    vercel_url = (
+        os.environ.get("VERCEL_PROJECT_PRODUCTION_URL")
+        or os.environ.get("VERCEL_URL", "")
+    )
     if not vercel_url:
         return None
     # Yahoo serves only a thin window for FX on anonymous 1d requests — 2d
