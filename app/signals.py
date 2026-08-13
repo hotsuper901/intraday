@@ -155,8 +155,23 @@ def detect_pattern(bars: list[dict]) -> Optional[str]:
     return None
 
 
+def median_gap(bars: list[dict]) -> float:
+    """Median seconds between consecutive bars (robust to market pauses)."""
+    if len(bars) < 2:
+        return 0.0
+    gaps = sorted(bars[i + 1]["ts"] - bars[i]["ts"] for i in range(len(bars) - 1))
+    return float(gaps[len(gaps) // 2])
+
+
 def resample(bars: list[dict], factor: int) -> list[dict]:
-    """Aggregate 1m bars into 5m (factor=5) bars."""
+    """Aggregate 1m bars into 5m (factor=5) bars.
+
+    Adaptive: if the source bars are already ~factor minutes apart (e.g. a
+    fallback feed handed us 5m bars where 1m was requested), return them
+    unchanged instead of producing garbage 25m aggregates."""
+    gap = median_gap(bars)
+    if gap and gap >= factor * 60 * 0.75:
+        return list(bars)
     out = []
     for i in range(0, len(bars) - len(bars) % factor, factor):
         group = bars[i: i + factor]
@@ -333,6 +348,18 @@ def _timeframe_analysis(bars: list[dict], label: str) -> dict:
     }
 
 
+def _rough_atr(bars: list[dict]) -> Optional[float]:
+    """Mean true range over the last few bars — a stop-distance estimate for
+    series too short for a full ATR."""
+    if len(bars) < 2:
+        return None
+    trs = []
+    for i in range(max(1, len(bars) - 14), len(bars)):
+        b, p = bars[i], bars[i - 1]
+        trs.append(max(b["high"] - b["low"], abs(b["high"] - p["close"]), abs(b["low"] - p["close"])))
+    return sum(trs) / len(trs) if trs else None
+
+
 def assess(bars_1m: list[dict], bars_5m: list[dict]) -> dict:
     """Combined multi-timeframe signal with prediction."""
     a1 = _timeframe_analysis(bars_1m, "1m")
@@ -354,11 +381,14 @@ def assess(bars_1m: list[dict], bars_5m: list[dict]) -> dict:
     )
     direction = "BUY" if combined > 0.3 else ("SELL" if combined < -0.3 else "NEUTRAL")
 
-    # Prediction: target = nearest S/R, stop = ATR-based
-    price = bars_5m[-1]["close"] if bars_5m else None
+    # Prediction: target = nearest S/R, stop = ATR-based. Falls back gracefully
+    # so a prediction always renders when any bars exist at all.
+    price = (bars_5m[-1]["close"] if bars_5m else (bars_1m[-1]["close"] if bars_1m else None))
     atr5 = a5["indicators"].get("atr")
-    target = stop = rr = None
-    if price and atr5:
+    if price:
+        if atr5 is None or atr5 <= 0:
+            atr5 = _rough_atr(bars_5m or bars_1m) or price * 0.002
+        target = stop = rr = None
         if direction == "BUY":
             target = a5["resistance"][0] if a5["resistance"] else price + 3 * atr5
             support = a5["support"][0] if a5["support"] else price - 2 * atr5
@@ -367,8 +397,28 @@ def assess(bars_1m: list[dict], bars_5m: list[dict]) -> dict:
             target = a5["support"][0] if a5["support"] else price - 3 * atr5
             resistance = a5["resistance"][0] if a5["resistance"] else price + 2 * atr5
             stop = max(resistance, price + 1.5 * atr5) if a5["resistance"] else price + 2 * atr5
+        else:
+            target = a5["resistance"][0] if a5["resistance"] else price + 2 * atr5
+            support = a5["support"][0] if a5["support"] else price - 2 * atr5
+            stop = support if support and support < price else price - 1.5 * atr5
         if target and stop and stop != price:
             rr = round(abs(target - price) / abs(stop - price), 2)
+
+        return {
+            "verdict": verdict,
+            "direction": direction,
+            "score": round(combined, 2),
+            "confidence": confidence,
+            "confluence": confluence,
+            "timeframes": {"1m": a1, "5m": a5},
+            "prediction": {
+                "entry": price,
+                "target": round(target, 4) if target else None,
+                "stop": round(stop, 4) if stop else None,
+                "rr": rr,
+            },
+            "reasons": a5["reasons"][:4] + a1["reasons"][:2],
+        }
 
     return {
         "verdict": verdict,
@@ -378,10 +428,10 @@ def assess(bars_1m: list[dict], bars_5m: list[dict]) -> dict:
         "confluence": confluence,
         "timeframes": {"1m": a1, "5m": a5},
         "prediction": {
-            "entry": price,
-            "target": round(target, 4) if target else None,
-            "stop": round(stop, 4) if stop else None,
-            "rr": rr,
+            "entry": None,
+            "target": None,
+            "stop": None,
+            "rr": None,
         },
         "reasons": a5["reasons"][:4] + a1["reasons"][:2],
     }

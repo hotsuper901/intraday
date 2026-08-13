@@ -158,6 +158,7 @@ class SignalRequest(BaseModel):
 async def api_signal(req: SignalRequest):
     """Multi-timeframe buy/sell signal: 1m + 5m confluence with prediction."""
     t = req.ticker.upper().strip()
+    degraded_note: str | None = None
     async with httpx.AsyncClient() as client:
         data = None
         degraded = True
@@ -171,23 +172,42 @@ async def api_signal(req: SignalRequest):
             if data:
                 bars_1m = data["bars"]
                 bars_5m = signals.resample(bars_1m, 5)
-                degraded = False
-            else:
+                degraded = len(bars_5m) == len(bars_1m) and signals.median_gap(bars_1m) >= 240
+                if len(bars_5m) < 26:
+                    # Too few 1m bars to build a 5m series — use the real one.
+                    real5 = await fetcher.fetch_ticker(client, t, interval=5)
+                    if real5 and len(real5["bars"]) >= 26:
+                        bars_5m = real5["bars"]
+                        data = real5
+                        degraded = True
+            if not data or len(data.get("bars") or []) < 26:
                 data = await fetcher.fetch_ticker(client, t, interval=5)
                 if data:
                     bars_1m = bars_5m = data["bars"]
                 else:
                     bars_1m = bars_5m = db.bars_for(t, limit=300)
     if len(bars_1m) < 26:
+        # Demo bars as a labeled last resort so the signal always renders.
+        db.init_db()
+        demo_data = await asyncio.to_thread(fetcher.fetch_demo, t)
+        if demo_data and len(demo_data["bars"]) >= 26:
+            bars_1m = bars_5m = demo_data["bars"]
+            data = demo_data
+            degraded = True
+            degraded_note = "live data unavailable — labeled demo bars used"
+    if len(bars_1m) < 26:
         raise HTTPException(status_code=404, detail=f"not enough data for {t}")
     result = signals.assess(bars_1m, bars_5m)
     result["ticker"] = t
     result["name"] = (data or {}).get("name") or t
-    result["source"] = config.DATA_MODE
+    result["source"] = "demo" if degraded_note else config.DATA_MODE
     result["asset"] = fetcher.asset_class(t)
     result["bars_1m"] = len(bars_1m)
     result["bars_5m"] = len(bars_5m)
     result["degraded"] = degraded
+    if degraded:
+        note = degraded_note or "1-minute data unavailable — 5m used for both timeframes"
+        result["reasons"].append(note)
     return result
 
 

@@ -361,6 +361,7 @@
         if (i5.vwap != null) items.push("VWAP " + fmtNum(i5.vwap));
         if (i5.bb_upper != null) items.push(`BB ${fmtNum(i5.bb_lower)}–${fmtNum(i5.bb_upper)}`);
         if (i5.pattern) items.push(i5.pattern);
+        if (s.degraded) items.push("5m-only analysis");
         chips.innerHTML = items.map((x) => `<span class="chip">${esc(x)}</span>`).join("");
       }
     }

@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
+import math
 import os
 import random
 import time
@@ -430,7 +431,13 @@ async def fetch_yahoo_edge_batch(client: httpx.AsyncClient, tickers: list, inter
         for t, u in urls.items():
             entry = payload.get(u)
             if entry and entry.get("status") == 200 and entry.get("body"):
-                data = _parse_chart(t, entry["body"])
+                # One malformed/empty entry (delisted symbol, null result)
+                # must not sink the whole batch — skip only that pair.
+                try:
+                    data = _parse_chart(t, entry["body"])
+                except (KeyError, TypeError, ValueError, IndexError) as e:
+                    LAST_FETCH_ERRORS[t] = f"edge-batch:bad payload: {e}"
+                    data = None
                 if data:
                     data["bars"] = data["bars"][-288:]
                     data["session_open"] = data["bars"][0]["ts"]
@@ -609,12 +616,15 @@ async def fetch_ticker(client: httpx.AsyncClient, ticker: str, interval: int = 5
             if finnhub_data:
                 return finnhub_data
         last_err: Exception | None = None
+        # Yahoo caps anonymous 1m data to a thin recent window on 1d; 5d
+        # reliably returns far more 1-minute history.
+        yahoo_range = "5d" if interval == 1 else "1d"
         for attempt in range(max(1, config.FETCH_RETRIES)):
             url = YAHOO_HOSTS[attempt % len(YAHOO_HOSTS)].format(ticker=ticker)
             try:
                 resp = await client.get(
                     url,
-                    params={"range": "1d", "interval": f"{interval}m"},
+                    params={"range": yahoo_range, "interval": f"{interval}m"},
                     headers={"User-Agent": config.USER_AGENT},
                     timeout=config.HTTP_TIMEOUT,
                 )
@@ -664,23 +674,34 @@ async def fetch_ticker(client: httpx.AsyncClient, ticker: str, interval: int = 5
 
 
 def _parse_chart(ticker: str, payload: dict) -> dict | None:
-    result = payload["chart"]["result"][0]
-    meta = result["meta"]
-    q = result["indicators"]["quote"][0]
-    timestamps = result.get("timestamp", [])
+    """Parse Yahoo's v8 chart response into bars. Tolerates delisted/unknown
+    symbols (result null with an error block) and None holes in OHLC."""
+    chart = payload.get("chart") or {}
+    result = chart.get("result") or []
+    if not result or not isinstance(result[0], dict):
+        return None
+    meta = result[0].get("meta") or {}
+    quote = (result[0].get("indicators") or {}).get("quote") or []
+    if not quote or not isinstance(quote[0], dict):
+        return None
+    q = quote[0]
+    timestamps = result[0].get("timestamp") or []
     bars = []
     for i, ts in enumerate(timestamps):
-        close = q["close"][i]
+        close = q["close"][i] if i < len(q["close"]) else None
         if close is None:
             continue
+        open_p = (q["open"][i] if i < len(q["open"]) else None) or close
+        high = (q["high"][i] if i < len(q["high"]) else None) or max(open_p, close)
+        low = (q["low"][i] if i < len(q["low"]) else None) or min(open_p, close)
         bars.append(
             {
                 "ts": int(ts),
-                "open": q["open"][i],
-                "high": q["high"][i],
-                "low": q["low"][i],
-                "close": close,
-                "volume": q["volume"][i] or 0,
+                "open": float(open_p),
+                "high": float(high),
+                "low": float(low),
+                "close": float(close),
+                "volume": (q["volume"][i] if i < len(q["volume"]) and q["volume"][i] is not None else 0) or 0,
             }
         )
     if not bars:
@@ -749,28 +770,95 @@ def asset_class(ticker: str) -> str:
 
 
 def _bars_timeline(ticker: str) -> list[int]:
-    """5m bar timestamps for the asset's trading window, up to now (ET).
-    Equities: 09:30–16:00. FX: 24h on weekdays. Crypto: 24/7 (midnight ET)."""
+    """5m bar timestamps for the demo generator. Always returns a usable
+    window so demo mode (and live demo-fallbacks) render 24/7:
+    - equities: the most recent 09:30–16:00 session (today once it started,
+      else the previous trading day).
+    - fx: the last 24h; when the market is closed (weekend), the last 24h of
+      Friday trading.
+    - crypto: the last 24h.
+    """
     now = datetime.now(ET)
     cls = asset_class(ticker)
-    if cls != "crypto" and now.weekday() >= 5:
-        return []
+
+    def session_bounds(day: datetime, open_min: int, close_min: int) -> tuple[int, int]:
+        start = day.replace(hour=open_min // 60, minute=open_min % 60, second=0, microsecond=0)
+        end = day.replace(hour=close_min // 60, minute=close_min % 60, second=0, microsecond=0)
+        return int(start.timestamp()), int(end.timestamp())
+
     if cls == "equity":
-        start = now.replace(hour=9, minute=30, second=0, microsecond=0)
-    else:
-        start = now.replace(hour=0, minute=0, second=0, microsecond=0)
-    ts = int(start.timestamp())
+        mins = now.hour * 60 + now.minute
+        if now.weekday() < 5 and mins >= 9 * 60 + 30:
+            ts, last = session_bounds(now, 9 * 60 + 30, 16 * 60)
+            last = min(last, int(now.timestamp()) // 300 * 300)
+            today_bars = list(range(ts, last + 1, 300))
+            if len(today_bars) < 26:
+                # Early in the session there aren't enough bars for the signal
+                # engine — prepend the previous session for a continuous series.
+                day = now - timedelta(days=1)
+                while day.weekday() >= 5:
+                    day -= timedelta(days=1)
+                pts, pl = session_bounds(day, 9 * 60 + 30, 16 * 60)
+                return list(range(pts, pl + 1, 300)) + today_bars
+            return today_bars
+        # Before today's open or on a weekend: replay the previous
+        # trading day's full session.
+        day = now - timedelta(days=1)
+        while day.weekday() >= 5:
+            day -= timedelta(days=1)
+        ts, last = session_bounds(day, 9 * 60 + 30, 16 * 60)
+        return list(range(ts, last + 1, 300))
+
+    if cls == "fx":
+        mins = now.hour * 60 + now.minute
+        wd = now.weekday()
+        market_open_now = (
+            (wd == 6 and mins >= 17 * 60) or 0 <= wd <= 3 or (wd == 4 and mins < 17 * 60)
+        )
+        if market_open_now:
+            last = int(now.timestamp()) // 300 * 300
+        else:
+            # Closed now: Sat/Sun pre-17:00, or Fri after 17:00 → Friday 17:00.
+            end_day = now if wd == 4 else (now - timedelta(days=1 if wd == 5 else 2))
+            _, last = session_bounds(end_day, 0, 17 * 60)
+        ts = last - 86400
+        return list(range(ts, last + 1, 300))
+
+    # crypto: rolling 24h
     last = int(now.timestamp()) // 300 * 300
+    ts = last - 86400
     return list(range(ts, last + 1, 300))
+
+
+def _synthetic_demo_base(ticker: str) -> float:
+    """Deterministic plausible base price for symbols missing from
+    DEMO_BASE_PRICES, spread log-uniformly per asset class."""
+    cls = asset_class(ticker)
+    lo, hi = {
+        "fx": (0.6, 1600.0),
+        "crypto": (0.02, 80000.0),
+        "equity": (8.0, 900.0),
+    }[cls]
+    rng = random.Random("demo-base:" + ticker)
+    return 10 ** (math.log10(lo) + rng.random() * (math.log10(hi) - math.log10(lo)))
+
+
+def _synthetic_demo_drift(ticker: str) -> float:
+    rng = random.Random("demo-drift:" + ticker)
+    return rng.uniform(-0.02, 0.02)
 
 
 def fetch_demo(ticker: str) -> dict | None:
     """Deterministic intraday walk, seeded per (ticker, bar ts). Continues from
-    the last stored bar if one exists so refreshes look continuous."""
+    the last stored bar if one exists so refreshes look continuous. Unknown
+    symbols get a deterministic synthetic price so demo mode works for any
+    ticker, any time of day."""
     base = DEMO_BASE_PRICES.get(ticker)
     if base is None:
-        return None
+        base = _synthetic_demo_base(ticker)
     drift = DEMO_DAY_DRIFT.get(ticker, 0.0)
+    if drift == 0.0 and ticker not in DEMO_BASE_PRICES:
+        drift = _synthetic_demo_drift(ticker)
     timestamps = _bars_timeline(ticker)
     if not timestamps:
         return None

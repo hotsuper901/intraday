@@ -261,6 +261,7 @@ async def api_signal(req: SignalRequest):
     """Multi-timeframe buy/sell signal: 1m + 5m indicator confluence with a
     price prediction (entry, target, stop, R:R)."""
     t = req.ticker.upper().strip()
+    degraded_note: str | None = None
     async with httpx.AsyncClient(follow_redirects=True) as client:
         if config.DATA_MODE == "demo":
             # Demo generator produces 5m bars only — analyze those on both slots.
@@ -275,29 +276,53 @@ async def api_signal(req: SignalRequest):
             degraded = True
         else:
             bars_1m, meta, source = await bars_for(t, client, interval=1)
-            if len(bars_1m) < 26:
+            degraded = False
+            if len(bars_1m) >= 26:
+                bars_5m = signals.resample(bars_1m, 5)
+                if len(bars_5m) == len(bars_1m) and signals.median_gap(bars_1m) >= 240:
+                    # The "1m" feed was actually coarse (e.g. a fallback source
+                    # serving 5m bars) — both timeframes are the same series.
+                    degraded = True
+                elif len(bars_5m) < 26:
+                    # Too few 1m bars to build a usable 5m series: fetch the
+                    # real 5m series so the 5m timeframe is fully analyzed.
+                    real5, meta5, src5 = await bars_for(t, client, interval=5)
+                    if real5 and len(real5) >= 26:
+                        bars_5m = real5
+                        meta, source = meta5, src5
+                        degraded = True
+                    else:
+                        bars_5m = signals.resample(bars_1m, 5)
+            else:
                 # Fall back: analyze the 5m series on both timeframes, flagged.
                 bars_5m, meta, source = await bars_for(t, client, interval=5)
                 bars_1m = bars_5m
                 degraded = True
-            else:
-                bars_5m = signals.resample(bars_1m, 5)
-                degraded = False
     if len(bars_1m) < 26:
-        # Last resorts: one direct retry (bypasses the instance cache), then
-        # labeled demo bars for FX so the signal always renders something.
+        # Last resorts: one direct retry (bypasses the instance cache, fresh
+        # client — the outer one is already closed here), then labeled demo
+        # bars so the signal always renders something.
         if config.DATA_MODE != "demo":
-            direct = await fetch_ticker(client, t, interval=5)
+            async with httpx.AsyncClient(follow_redirects=True) as retry_client:
+                direct = await fetch_ticker(retry_client, t, interval=5)
             if direct and len(direct["bars"]) >= 26:
                 bars_1m = bars_5m = direct["bars"]
+                meta = {
+                    "name": direct["name"],
+                    "prev_close": direct["prev_close"],
+                    "session_open": direct["session_open"],
+                }
+                source = "live"
                 degraded = True
-        if len(bars_1m) < 26 and asset_class(t) == "fx":
+                degraded_note = "live 1m/5m unavailable — direct 5m fetch used"
+        if len(bars_1m) < 26:
             db.init_db()
             demo_data = await asyncio.to_thread(fetch_demo, t)
             if demo_data and len(demo_data["bars"]) >= 26:
                 bars_1m = bars_5m = demo_data["bars"]
                 degraded = True
                 source = "demo"
+                degraded_note = "live data unavailable — labeled demo bars used"
         if len(bars_1m) < 26:
             raise HTTPException(status_code=404, detail=f"not enough data for {t}")
     result = signals.assess(bars_1m, bars_5m)
@@ -309,7 +334,8 @@ async def api_signal(req: SignalRequest):
     result["bars_5m"] = len(bars_5m)
     result["degraded"] = degraded
     if degraded:
-        result["reasons"].append("1-minute data unavailable — 5m used for both timeframes")
+        note = degraded_note or "1-minute data unavailable — 5m used for both timeframes"
+        result["reasons"].append(note)
     return result
 
 
