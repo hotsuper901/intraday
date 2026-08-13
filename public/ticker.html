@@ -4,8 +4,8 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="description" content="Intraday Radar signal panel: 1m+5m indicator confluence, price prediction and risk check for any symbol.">
-  <meta name="theme-color" content="#050506">
-  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' y1='0' x2='1' y2='1'%3E%3Cstop offset='0' stop-color='%235e6ad2'/%3E%3Cstop offset='1' stop-color='%238b93e8'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='32' height='32' rx='8' fill='url(%23g)'/%3E%3Cpath d='M7 21 L12 13 L16 17 L20 10 L25 18' stroke='%230a0a0c' stroke-width='3' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
+  <meta name="theme-color" content="#090014">
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' y1='0' x2='1' y2='1'%3E%3Cstop offset='0' stop-color='%23ff00ff'/%3E%3Cstop offset='1' stop-color='%2300ffff'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='32' height='32' fill='url(%23g)'/%3E%3Cpath d='M7 21 L12 13 L16 17 L20 10 L25 18' stroke='%23090014' stroke-width='3' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
   <meta property="og:title" content="Ticker — Intraday Radar">
   <meta property="og:description" content="Intraday Radar signal panel: 1m+5m indicator confluence, price prediction and risk check for any symbol.">
   <meta property="og:type" content="website">
@@ -13,11 +13,11 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="dns-prefetch" href="https://fonts.gstatic.com">
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <link rel="preload" href="/static/style.css?v=20" as="style">
-  <link rel="stylesheet" href="/static/style.css?v=20">
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;700;900&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+  <link rel="preload" href="/static/style.css?v=22" as="style">
+  <link rel="stylesheet" href="/static/style.css?v=22">
 </head>
-<body>
+<body class="data-page">
   <header class="topbar">
     <a class="brand" href="/"><span class="logo">▮</span> Intraday <em>Radar</em></a>
     <span class="byline">by <b>M.S.J Hafiz</b></span>
@@ -98,11 +98,27 @@
         </table>
       </section>
     </div>
+
+    <section class="panel" id="risk-panel">
+      <div class="panel-head">
+        <h1>Position risk check <span class="sub">position sizing · stop distance · entry verdict</span></h1>
+      </div>
+      <div class="risk-form">
+        <label>Account $ <input type="number" id="r-account" value="25000" min="1" step="any" inputmode="decimal" placeholder="25000"></label>
+        <label>Risk % <input type="number" id="r-risk" value="1" min="0.1" max="10" step="0.1" inputmode="decimal" placeholder="1"></label>
+        <label>Entry <input type="number" id="r-entry" step="any" inputmode="decimal" placeholder="current price"></label>
+        <label>Stop <input type="number" id="r-stop" step="any" inputmode="decimal" placeholder="required — signal prefills"></label>
+        <button class="btn" id="r-run" type="button">Check risk</button>
+      </div>
+      <div class="verdict INVALID" id="risk-verdict" aria-live="polite" hidden></div>
+      <ul class="reasons" id="risk-reasons"></ul>
+      <div class="sizing" id="risk-sizing" hidden></div>
+    </section>
   </main>
   <footer class="site-foot">
     Intraday Radar <span class="sep">•</span> Crafted by <span class="credit">M.S.J Hafiz</span>
   </footer>
-  <script src="/static/chart.js?v=20" defer></script>
-  <script src="/static/app.js?v=20" defer></script>
+  <script src="/static/chart.js?v=22" defer></script>
+  <script src="/static/app.js?v=22" defer></script>
 </body>
 </html>

@@ -11,8 +11,8 @@
 
   const UP = "#26a69a";
   const DOWN = "#ef5350";
-  const GRID = "rgba(255, 255, 255, 0.05)";
-  const AXIS = "#8a8f98";
+  const GRID = "rgba(0, 255, 255, 0.06)";
+  const AXIS = "#8a7bb8";
   const WICK_W = 1.2;
 
   function fmtTime(ts) {
@@ -75,8 +75,8 @@
       ctx.clearRect(0, 0, cssW, cssH);
 
       if (!arr || arr.length === 0) {
-        ctx.fillStyle = "#8a8f98";
-        ctx.font = "13px sans-serif";
+        ctx.fillStyle = "#8a7bb8";
+        ctx.font = "13px 'Share Tech Mono', 'SF Mono', Consolas, monospace";
         ctx.fillText("no intraday bars — live quotes only", 12, 24);
         return;
       }
@@ -103,7 +103,7 @@
 
       // ---- grid + price axis (right) ---------------------------------
       ctx.lineWidth = 1;
-      ctx.font = "10.5px 'JetBrains Mono', 'SF Mono', Consolas, monospace";
+      ctx.font = "10.5px 'Share Tech Mono', 'SF Mono', Consolas, monospace";
       const levels = 6;
       for (let g = 0; g <= levels; g++) {
         const gy = padT + g * priceH / levels;
@@ -141,7 +141,7 @@
 
       // ---- VWAP line -----------------------------------------------------
       if (vwapPrice && vwapPrice > 0) {
-        ctx.strokeStyle = "rgba(251,191,36,.75)";
+        ctx.strokeStyle = "rgba(255,153,0,.8)";
         ctx.setLineDash([5, 4]);
         ctx.lineWidth = 1;
         ctx.beginPath();
@@ -149,7 +149,7 @@
         ctx.lineTo(cssW - padR, y(vwapPrice));
         ctx.stroke();
         ctx.setLineDash([]);
-        ctx.fillStyle = "rgba(251,191,36,.9)";
+        ctx.fillStyle = "rgba(255,153,0,.95)";
         ctx.textAlign = "left";
         ctx.textBaseline = "bottom";
         ctx.fillText("VWAP", padL + 2, y(vwapPrice) - 2);
@@ -192,12 +192,12 @@
       ctx.setLineDash([]);
       // pill tag at the right axis
       const tag = fmtPx(lastB.close);
-      ctx.font = "10.5px 'JetBrains Mono', 'SF Mono', Consolas, monospace";
+      ctx.font = "10.5px 'Share Tech Mono', 'SF Mono', Consolas, monospace";
       const tw = ctx.measureText(tag).width + 10;
       ctx.fillStyle = lc;
       roundRect(ctx, cssW - padR + 4, ly - 8, Math.min(tw, padR - 8), 16, 4);
       ctx.fill();
-      ctx.fillStyle = "#06131c";
+      ctx.fillStyle = "#090014";
       ctx.textAlign = "left";
       ctx.textBaseline = "middle";
       ctx.fillText(tag, cssW - padR + 9, ly + 0.5);
@@ -206,8 +206,8 @@
       if (opts.symbol) {
         ctx.save();
         ctx.globalAlpha = 0.05;
-        ctx.fillStyle = "#ededef";
-        ctx.font = "700 24px 'JetBrains Mono', 'SF Mono', Consolas, monospace";
+        ctx.fillStyle = "#e0e0e0";
+        ctx.font = "700 24px 'Share Tech Mono', 'SF Mono', Consolas, monospace";
         ctx.textAlign = "left";
         ctx.textBaseline = "alphabetic";
         ctx.fillText(opts.symbol + (opts.interval ? " · " + opts.interval : ""), padL + 4, padT + priceH - 8);
@@ -219,7 +219,7 @@
       if (hover) {
         const cx = x(st.hoverIdx);
         const cy = y(hover.close);
-        ctx.strokeStyle = "rgba(34,211,238,.28)";
+        ctx.strokeStyle = "rgba(0,255,255,.28)";
         ctx.setLineDash([3, 3]);
         ctx.lineWidth = 1;
         ctx.beginPath(); ctx.moveTo(cx, padT); ctx.lineTo(cx, padT + priceH); ctx.stroke();
@@ -227,17 +227,17 @@
         ctx.setLineDash([]);
         // axis price tag at cursor y
         const ctag = fmtPx(hover.close);
-        ctx.font = "10.5px 'JetBrains Mono', 'SF Mono', Consolas, monospace";
+        ctx.font = "10.5px 'Share Tech Mono', 'SF Mono', Consolas, monospace";
         const ctw = ctx.measureText(ctag).width + 10;
-        ctx.fillStyle = "#22d3ee";
+        ctx.fillStyle = "#00ffff";
         roundRect(ctx, cssW - padR + 4, cy - 8, Math.min(ctw, padR - 8), 16, 4);
         ctx.fill();
-        ctx.fillStyle = "#06131c";
+        ctx.fillStyle = "#090014";
         ctx.textAlign = "left";
         ctx.textBaseline = "middle";
         ctx.fillText(ctag, cssW - padR + 9, cy + 0.5);
         // candle ring
-        ctx.strokeStyle = "rgba(34,211,238,.8)";
+        ctx.strokeStyle = "rgba(0,255,255,.85)";
         ctx.lineWidth = 1.1;
         ctx.strokeRect(x(st.hoverIdx) - cw / 2 - 2, y(Math.max(hover.open, hover.close)) - 2,
           cw + 4, Math.max(1.2, Math.abs(y(hover.open) - y(hover.close))) + 4);
@@ -250,8 +250,8 @@
         if (cx + 14 + bw > cssW - padR) bx = cx - bw - 14;
         bx = Math.max(padL + 4, bx);
         let by = Math.max(padT + 4, cy - bh - 12);
-        ctx.fillStyle = "rgba(10, 10, 12, 0.94)";
-        ctx.strokeStyle = "rgba(255,255,255,.18)";
+        ctx.fillStyle = "rgba(26, 16, 60, 0.95)";
+        ctx.strokeStyle = "rgba(0,255,255,.5)";
         ctx.lineWidth = 1;
         roundRect(ctx, bx, by, bw, bh, 8);
         ctx.fill();
@@ -259,14 +259,14 @@
         ctx.textBaseline = "middle";
         ctx.textAlign = "left";
         const tx = bx + 10;
-        ctx.font = "700 11.5px 'JetBrains Mono', 'SF Mono', Consolas, monospace";
-        ctx.fillStyle = "#22d3ee";
+        ctx.font = "700 11.5px 'Share Tech Mono', 'SF Mono', Consolas, monospace";
+        ctx.fillStyle = "#00ffff";
         ctx.fillText(fmtTime(hover.ts) + " · " + opts.interval, tx, by + 14);
-        ctx.font = "10.5px 'JetBrains Mono', 'SF Mono', Consolas, monospace";
+        ctx.font = "10.5px 'Share Tech Mono', 'SF Mono', Consolas, monospace";
         const row = (label, val, color, ry) => {
-          ctx.fillStyle = "#8a8f98";
+          ctx.fillStyle = "#8a7bb8";
           ctx.fillText(label, tx, ry);
-          ctx.fillStyle = color || "#e8eef8";
+          ctx.fillStyle = color || "#e0e0e0";
           ctx.textAlign = "right";
           ctx.fillText(val, bx + bw - 10, ry);
           ctx.textAlign = "left";
@@ -275,7 +275,7 @@
         row("H", fmtPx(hover.high), UP, by + 44);
         row("L", fmtPx(hover.low), DOWN, by + 58);
         row("C", fmtPx(hover.close), hover.close >= hover.open ? UP : DOWN, by + 72);
-        row("V", fmtVol(hover.volume || 0), "#8b98ad", by + 86);
+        row("V", fmtVol(hover.volume || 0), "#b39ddb", by + 86);
         ctx.fillStyle = chg >= 0 ? UP : DOWN;
         ctx.textAlign = "right";
         ctx.fillText((chg >= 0 ? "+" : "") + chg.toFixed(2) + "%", bx + bw - 10, by + 86);
