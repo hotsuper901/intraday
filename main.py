@@ -433,6 +433,13 @@ def ticker_page(ticker: str):
     return FileResponse(str(ROOT / "public" / "ticker.html"))
 
 
+@app.get("/guide", include_in_schema=False)
+def guide_page():
+    """Trading-signal manual: how to apply the signal on Binomo, Pocket
+    Option, IQ Option and other brokers."""
+    return FileResponse(str(ROOT / "public" / "guide.html"))
+
+
 app.mount("/", StaticFiles(directory=str(ROOT / "public"), html=True, check_dir=False), name="frontend")
 
 

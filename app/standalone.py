@@ -108,6 +108,12 @@ def ticker_page(request: Request, ticker: str):
     )
 
 
+@app.get("/guide", response_class=HTMLResponse)
+def guide_page(request: Request):
+    """Trading-signal manual: Binomo, Pocket Option, IQ Option and more."""
+    return templates.TemplateResponse(request, "guide.html", {})
+
+
 # --------------------------------------------------------------------------
 # API
 # --------------------------------------------------------------------------

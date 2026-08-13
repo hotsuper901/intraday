@@ -1,0 +1,171 @@
+<!doctype html>
+<html lang="en" data-bs-theme="dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>How to Use the Signal — Intraday Radar</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/static/style.css">
+  <style>
+    .guide h2 { font-size: 15px; font-weight: 750; letter-spacing: -0.01em; margin: 26px 0 10px; display: flex; align-items: center; gap: 10px; }
+    .guide h2::before { content: ""; width: 8px; height: 8px; border-radius: 2px; background: var(--cyan); box-shadow: 0 0 12px rgba(34, 211, 238, 0.8); }
+    .guide p, .guide li { font-size: 13.5px; line-height: 1.65; color: var(--text2, #aab6ca); }
+    .guide ul, .guide ol { padding-left: 22px; }
+    .guide li { margin-bottom: 7px; }
+    .guide li b, .guide p b { color: var(--text, #e2e8f0); }
+    .guide .step { display: flex; gap: 14px; margin-bottom: 12px; }
+    .guide .step .n {
+      flex: 0 0 30px; height: 30px; border-radius: 9px; display: grid; place-items: center;
+      background: linear-gradient(135deg, rgba(34,211,238,.18), rgba(34,211,238,.05));
+      border: 1px solid rgba(34,211,238,.4); color: var(--cyan); font-weight: 800; font-size: 14px; font-family: var(--mono);
+    }
+    .guide .broker { border-left: 3px solid var(--cyan); padding-left: 16px; margin-bottom: 22px; }
+    .guide .broker h3 { font-size: 14px; font-weight: 750; margin: 0 0 6px; }
+    .guide .broker h3 .hint { font-weight: 500; color: var(--muted); font-size: 12px; }
+    .guide table.grid td, .guide table.grid th { padding: 8px 12px; font-size: 12.5px; }
+    .guide .verdict-demo { display: flex; gap: 8px; flex-wrap: wrap; margin: 10px 0 4px; }
+    .guide .vbox {
+      border: 1px solid rgba(148,163,184,.18); border-radius: 10px; padding: 8px 12px; font-size: 12px;
+      background: rgba(15,22,38,.6); font-family: var(--mono); white-space: nowrap;
+    }
+    .guide .vbox b { display: block; font-size: 13px; margin-bottom: 2px; }
+    .guide .strong-buy { color: #2ee6a8; border-color: rgba(46,230,168,.45); }
+    .guide .buy { color: var(--green); }
+    .guide .neutral { color: var(--muted); }
+    .guide .sell { color: var(--red); }
+    .guide .strong-sell { color: #ff8fa3; border-color: rgba(255,143,163,.45); }
+    .guide .warn { border: 1px solid rgba(251,191,36,.35); background: rgba(251,191,36,.06); border-radius: 10px; padding: 10px 14px; font-size: 12.5px; color: #d9c07a; margin-top: 10px; }
+    .guide .key { font-family: var(--mono); font-size: 11.5px; color: var(--cyan); }
+  </style>
+</head>
+<body>
+  <header class="topbar">
+    <a class="brand" href="/"><span class="logo">▮</span> Intraday <em>Radar</em></a>
+    <span class="byline">by <b>M.S.J Hafiz</b></span>
+    <div class="topbar-right">
+      <span class="pill badge rounded-pill" id="mode-pill">—</span>
+      <span class="pill badge rounded-pill" id="state-pill">—</span>
+      <span class="clock" id="et-clock">--:--:-- ET</span>
+      <a class="btn btn-primary" href="/">← Screener</a>
+    </div>
+  </header>
+  <div class="tape"><div class="tape-track" id="tape-track"></div></div>
+  <main class="container-xxl">
+    <div class="crumbs"><a href="/">screener</a><span>guide</span></div>
+
+    <section class="panel guide">
+      <div class="panel-head">
+        <h1>How to trade the signal <span class="sub">manual for Binomo · Pocket Option · IQ Option · Quotex · Olymp Trade · Deriv · ExpertOption and any MT5/MT4 broker</span></h1>
+      </div>
+
+      <h2>1 · Reading the signal panel</h2>
+      <p>Every ticker page (<a href="/ticker/AAPL" style="color:var(--cyan)">/ticker/SYMBOL</a>) has a <b>Trading signal</b> panel built from 1-minute + 5-minute bars with nine indicators (EMA stack, MACD, RSI, stochastic, Bollinger, VWAP, OBV, ATR, candlestick patterns). It refreshes every 30 seconds and re-runs on the <b>⟳ Analyze</b> button.</p>
+      <div class="verdict-demo">
+        <span class="vbox strong-buy"><b>STRONG BUY</b>score ≥ +3.0</span>
+        <span class="vbox buy"><b>BUY</b>score ≥ +1.2</span>
+        <span class="vbox neutral"><b>NEUTRAL</b>−1.2 … +1.2</span>
+        <span class="vbox sell"><b>SELL</b>score ≤ −1.2</span>
+        <span class="vbox strong-sell"><b>STRONG SELL</b>score ≤ −3.0</span>
+      </div>
+      <ul>
+        <li><b>Verdict</b> — the headline call. Trade only BUY / STRONG BUY / SELL / STRONG SELL. Skip NEUTRAL entirely.</li>
+        <li><b>Confidence</b> — 45–94%. Under 60 treat the signal as noise. Over 75 with confluence is the sweet spot.</li>
+        <li><b>1m+5m confluence</b> — both timeframes agree and are strong. This is the highest-quality setup on the panel.</li>
+        <li><b>1m / 5m boxes</b> — each timeframe's own verdict, score, EMA state, RSI, stochastic and pattern. If they conflict (1m SELL, 5m BUY), the combined call is NEUTRAL — that is the panel telling you <b>no trade</b>.</li>
+        <li><b>Prediction</b> — Entry = current price. Target = nearest resistance/support (or 3× ATR). Stop = ATR/S&R based. R:R = reward/risk ratio; only take signals where the panel shows roughly 1 : 1.5 or better.</li>
+        <li><b>Chips</b> — RSI, MACD, Stoch, EMA, VWAP, BB, pattern values behind the score.</li>
+        <li><b>5m-only analysis</b> chip — 1-minute data was unavailable; the signal is a single-timeframe call. Halve your normal size.</li>
+      </ul>
+
+      <h2>2 · The 5-step trade routine</h2>
+      <div class="step"><div class="n">1</div><div>Open the screener, filter by movers (Min chg % 1.5, Min rel vol 1.5), click a symbol — or open <span class="key">/ticker/EURUSD=X</span> directly for the pair you trade.</div></div>
+      <div class="step"><div class="n">2</div><div>Wait for the <b>current 5-minute candle to close</b>. The signal recalculates on the closed bar; entries taken mid-candle get invalidated by the next refresh.</div></div>
+      <div class="step"><div class="n">3</div><div>Only act on BUY/SELL or stronger, confidence ≥ 60, and check the 1m/5m boxes agree in direction (confluence label visible).</div></div>
+      <div class="step"><div class="n">4</div><div>Confirm the same asset on your broker's chart — same pair, same direction, and ideally your broker's own momentum (price above VWAP on the panel for buys).</div></div>
+      <div class="step"><div class="n">5</div><div>Enter with the platform you use (below). The signal is valid for the <b>current 5-minute bar</b> — if the next bar changes the verdict, stand down and wait for the next setup.</div></div>
+
+      <h2>3 · Expiry mapping (binary / fixed-time platforms)</h2>
+      <table class="grid">
+        <thead><tr><th>Signal</th><th>Confidence</th><th>Recommended expiry</th><th>Notes</th></tr></thead>
+        <tbody>
+          <tr><td><span class="vbox buy" style="border:none;padding:0;background:none"><b style="display:inline">STRONG BUY / SELL</b></span></td><td>≥ 75 + confluence</td><td class="num">10 – 15 min</td><td>Best setup; 2–3 candles to play out. Allowed on 1m expiry only in turbo trading.</td></tr>
+          <tr><td>BUY / SELL</td><td>60 – 74</td><td class="num">5 min</td><td>Standard trade; one 5m candle.</td></tr>
+          <tr><td>NEUTRAL</td><td>any</td><td class="num">—</td><td>No trade. Wait for the next bar.</td></tr>
+          <tr><td>5m-only chip visible</td><td>any</td><td class="num">5 min, half size</td><td>Single-timeframe signal.</td></tr>
+        </tbody>
+      </table>
+      <p style="margin-top:10px">Rule of thumb: expiry = 1–3 signal bars. A 5-minute-bar signal with a 1-minute expiry is noise; with a 1-hour expiry it's a gamble on trend that the signal never measured.</p>
+
+      <h2>4 · Binomo</h2>
+      <div class="broker">
+        <h3>Fixed-time trades on FX majors <span class="hint">· EUR/USD, GBP/USD, USD/JPY … map 1:1 to the EURUSD=X style pairs</span></h3>
+        <ul>
+          <li>Open the pair that matches the ticker — <b>EURUSD=X → EUR/USD</b>, <b>GBPJPY=X → GBP/JPY</b>, <b>BTC-USD → BTC/USD</b> (Binomo lists it as BTC/USD or Bitcoin).</li>
+          <li>Set the chart to <b>5-minute candles</b> and expiry to <b>5 min</b> (BUY/SELL) or <b>10–15 min</b> (STRONG with confluence).</li>
+          <li>Entry at the close of the 5m candle: HIGH if the panel says BUY, LOW if SELL. If price hits the panel's <b>stop</b> level before expiry, the setup failed — do not double down.</li>
+          <li>OTC pairs: the signal still works but spreads vary; prefer the standard FX pairs. Skip trading 3 minutes either side of high-impact news (NFP, CPI, FOMC).</li>
+          <li>Practice on the free $1,000 demo until you've seen 30+ signal setups play out; then start with minimum $1 trades.</li>
+        </ul>
+        <div class="warn">Binomo payouts are fixed at entry and losses are 100% of stake — the signal's R:R can't save a losing binary. That's why the NEUTRAL skip and the confidence ≥ 60 filter matter more than the verdict itself.</div>
+      </div>
+
+      <h2>5 · Pocket Option</h2>
+      <div class="broker">
+        <h3>High/Low + OTC <span class="hint">· 100+ assets, 5s–4h expiry, up to 92% payout</span></h3>
+        <ul>
+          <li>Match symbols: <b>AAPL → Apple</b>, <b>BTC-USD → BTC/USD</b>, <b>EURUSD=X → EUR/USD</b>, <b>XAU-like gold signals → Gold</b> (add to watchlist as GC=F).</li>
+          <li>Use standard <b>High/Low</b>, not Turbo, with <b>5 min expiry</b> for BUY/SELL and <b>15 min</b> for STRONG+confluence.</li>
+          <li>Check the pair's payout before entry — below 80% on a 5m expiry, skip it; the signal needs the payout to cover losing streaks.</li>
+          <li>The <b>R:R</b> line in the prediction is your stake-sizing guide: treat target/stop as the price range you expect within the expiry; if the expected move (target) is tiny relative to the stop, the signal is saying the range is tight — skip.</li>
+          <li>If you trade Pocket Option's forex CFD mode, apply the prediction literally: entry at price, TP at target, SL at stop.</li>
+        </ul>
+      </div>
+
+      <h2>6 · IQ Option</h2>
+      <div class="broker">
+        <h3>Regulated broker <span class="hint">· FX CFDs, digital options, and (jurisdiction-dependent) binaries</span></h3>
+        <ul>
+          <li><b>FX CFD mode</b> is where this signal fits best: set a market order on EUR/USD, GBP/JPY etc., TP = panel target, SL = panel stop. The R:R shown is your actual risk/reward.</li>
+          <li><b>Digital options</b>: 1-minute and 5-minute expiries only when the signal is STRONG with confluence; use 3–5 minute expiry at the 5m candle close.</li>
+          <li>Leverage note: with 1:30 retail leverage, one losing signal at full size is a large drawdown — size so the SL distance equals ≤ 1–2% of account (use the /api/risk math: account × risk% ÷ stop distance = units).</li>
+          <li>IQ Option uses real market execution — a signal is an edge, not an instruction; slippage on news candles can move your fill past the stop.</li>
+        </ul>
+      </div>
+
+      <h2>7 · Other supported brokers</h2>
+      <table class="grid">
+        <thead><tr><th>Broker</th><th>Product to use</th><th>Expiry / mapping</th><th>Notes</th></tr></thead>
+        <tbody>
+          <tr><td><b>Quotex</b></td><td>Binary High/Low, OTC</td><td>5m BUY/SELL · 15m STRONG</td><td>Same workflow as Pocket Option.</td></tr>
+          <tr><td><b>Olymp Trade</b></td><td>Fixed-time trades</td><td>5–15 min</td><td>1:1 pair mapping; demo first.</td></tr>
+          <tr><td><b>Deriv</b></td><td>Digital options / Multipliers</td><td>5 min expiry; multipliers use target/stop as TP/SL</td><td>Multiplier profit matches the panel R:R.</td></tr>
+          <tr><td><b>ExpertOption</b></td><td>Binary</td><td>5 min</td><td>Pairs match =X symbols.</td></tr>
+          <tr><td><b>Exnova</b></td><td>Binary</td><td>5 min</td><td>Pairs match =X symbols.</td></tr>
+          <tr><td><b>MT5 / MT4 brokers</b> (Exness, IC Markets, XM, HFM…)</td><td>Spot FX / CFD orders</td><td>Entry = price, TP = target, SL = stop</td><td>Set a pending order after the 5m close; cancel if the next signal flips.</td></tr>
+        </tbody>
+      </table>
+      <p style="margin-top:10px">The signal works on <b>any</b> broker listing the same asset — the panel is broker-agnostic. Crypto signals (BTC-USD, ETH-USD…) trade 24/7 anywhere; equity signals only carry weight inside the 09:30–16:00 ET US session; FX signals 24/5 (Sun 17:00 ET → Fri 17:00 ET).</p>
+
+      <h2>8 · Risk rules (non-negotiable)</h2>
+      <ul>
+        <li>Risk <b>1–2%</b> of the account per trade (5% absolute max, STRONG signals only).</li>
+        <li>Max <b>3 consecutive losses</b> per session — then stop for the day. Signals don't revenge-trade; you do.</li>
+        <li>Never martingale. Doubling after a loss is how accounts die; the signal already gave you a stop level.</li>
+        <li>Skip the 3 minutes before/after high-impact news (NFP, CPI, FOMC, rate decisions). The panel can't see the event, and spreads explode.</li>
+        <li>One open trade per signal. Stacking 5 same-direction bets on one bar is one trade with extra steps and worse fills.</li>
+        <li>Trade the signal on the demo account of every platform for at least a week before real money — this manual is the theory, the demo is the practice.</li>
+      </ul>
+
+      <div class="warn">No signal predicts the future — this panel measures momentum, trend and volatility, and even a 94%-confidence STRONG call loses sometimes. Treat the signal as a filter that keeps you out of bad entries, not as a guarantee.</div>
+    </section>
+  </main>
+  <footer class="site-foot">
+    Intraday Radar <span class="sep">•</span> <a href="/guide" style="color:var(--muted)">Signal trading manual</a> <span class="sep">•</span> Crafted by <span class="credit">M.S.J Hafiz</span>
+  </footer>
+  <script src="/static/chart.js"></script>
+  <script src="/static/app.js"></script>
+</body>
+</html>
