@@ -568,3 +568,83 @@ a:hover { color: #67e8f9; }
   .conf-wrap { flex-direction: column; align-items: stretch; gap: 6px; }
   .conf-label { text-align: center; }
 }
+
+/* ============================================================
+   Bootstrap 5.3 integration — theme shim
+   ============================================================ */
+[data-bs-theme="dark"] {
+  --bs-body-bg: #05080f;
+  --bs-body-color: #e8eef8;
+  --bs-border-color: rgba(148, 163, 184, 0.16);
+  --bs-secondary-color: #8b98ad;
+  --bs-tertiary-color: #5d6b82;
+  --bs-primary: #22d3ee;
+  --bs-primary-rgb: 34, 211, 238;
+  --bs-success: #34d399;
+  --bs-success-rgb: 52, 211, 153;
+  --bs-danger: #fb7185;
+  --bs-danger-rgb: 251, 113, 133;
+  --bs-warning: #fbbf24;
+  --bs-warning-rgb: 251, 191, 36;
+  --bs-info: #818cf8;
+  --bs-info-rgb: 129, 140, 248;
+  --bs-body-font-family: "Inter", -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  --bs-font-monospace: "JetBrains Mono", "SF Mono", Consolas, monospace;
+  --bs-link-color: #22d3ee;
+  --bs-link-hover-color: #67e8f9;
+}
+
+/* buttons — gradient primary, themed outline */
+.btn { border-radius: 9px; font-weight: 600; letter-spacing: .01em; }
+.btn-primary {
+  --bs-btn-bg: linear-gradient(135deg, #22d3ee 0%, #818cf8 100%);
+  --bs-btn-border-color: transparent;
+  --bs-btn-color: #06131c;
+  --bs-btn-hover-bg: linear-gradient(135deg, #38dcf5 0%, #8f9afb 100%);
+  --bs-btn-hover-border-color: transparent;
+  --bs-btn-hover-color: #06131c;
+  --bs-btn-active-bg: linear-gradient(135deg, #18c0da 0%, #7181ef 100%);
+  --bs-btn-active-color: #06131c;
+  box-shadow: 0 4px 18px rgba(34, 211, 238, 0.22);
+}
+.btn-outline-primary {
+  --bs-btn-color: #22d3ee;
+  --bs-btn-border-color: rgba(34, 211, 238, 0.45);
+  --bs-btn-hover-bg: rgba(34, 211, 238, 0.12);
+  --bs-btn-hover-border-color: #22d3ee;
+  --bs-btn-hover-color: #67e8f9;
+  --bs-btn-active-bg: rgba(34, 211, 238, 0.2);
+  --bs-btn-active-color: #67e8f9;
+}
+
+/* forms — dark inputs with cyan focus ring */
+.form-control, .form-select {
+  background-color: rgba(10, 16, 29, 0.9);
+  border-color: rgba(148, 163, 184, 0.28);
+  color: var(--bs-body-color);
+}
+.form-control:focus, .form-select:focus {
+  background-color: rgba(10, 16, 29, 0.95);
+  border-color: #22d3ee;
+  box-shadow: 0 0 0 3px rgba(34, 211, 238, 0.14);
+  color: var(--bs-body-color);
+}
+.form-select {
+  background-image: url("data:image/svg+xml;charset=UTF-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%238b98ad' stroke-width='1.5' fill='none'/%3E%3C/svg%3E");
+}
+
+/* tables — keep the radar look on Bootstrap's table base */
+.table { --bs-table-bg: transparent; --bs-table-border-color: rgba(148, 163, 184, 0.08); color: var(--bs-body-color); }
+.table > :not(caption) > * > * { border-bottom-color: rgba(148, 163, 184, 0.08); }
+
+/* badges — pills inherit the radar palette */
+.badge { font-weight: 600; }
+
+/* progress (confidence meter) */
+.progress { --bs-progress-bg: rgba(10, 16, 29, 0.9); --bs-progress-bar-bg: linear-gradient(135deg, #22d3ee 0%, #818cf8 100%); }
+
+/* bootstrap utilities tune */
+.text-muted { color: #8b98ad !important; }
+.text-success { color: #34d399 !important; }
+.text-danger { color: #fb7185 !important; }
+.card { --bs-card-bg: rgba(15, 22, 38, 0.82); --bs-card-border-color: rgba(148, 163, 184, 0.14); }

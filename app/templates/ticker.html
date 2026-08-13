@@ -25,11 +25,11 @@
       <section class="panel">
         <div class="panel-head">
           <h1>Trading signal <span class="sub">1m + 5m multi-indicator confluence · prediction</span></h1>
-          <button class="btn" id="s-refresh">⟳ Analyze</button>
+          <button class="btn btn-primary" id="s-refresh">⟳ Analyze</button>
         </div>
         <div class="signal-verdict neutral" id="signal-verdict"><span class="muted">analyzing…</span></div>
         <div class="conf-wrap">
-          <div class="conf-track"><div class="conf-bar" id="conf-bar"></div></div>
+          <div class="conf-track progress"><div class="conf-bar progress-bar" id="conf-bar"></div></div>
           <span class="conf-label" id="conf-label"></span>
         </div>
         <div class="sig-tfs" id="sig-tfs"></div>
@@ -40,7 +40,7 @@
 
   <section class="panel">
     <div class="panel-head"><h1>Last bars</h1></div>
-    <table class="grid small-table" id="bars-table">
+        <table class="grid small-table table align-middle" id="bars-table">
       <thead><tr><th>Time (ET)</th><th class="num">O</th><th class="num">H</th><th class="num">L</th><th class="num">C</th><th class="num">Vol</th></tr></thead>
       <tbody id="bars-body"></tbody>
     </table>
