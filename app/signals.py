@@ -411,6 +411,8 @@ def assess(bars_1m: list[dict], bars_5m: list[dict]) -> dict:
             target = a5["resistance"][0] if a5["resistance"] else price + 2 * atr5
             support = a5["support"][0] if a5["support"] else price - 2 * atr5
             stop = support if support and support < price else price - 1.5 * atr5
+            if target - price < 1.5 * (price - stop):
+                target = price + 1.5 * (price - stop)
         if target and stop and stop != price:
             rr = round(abs(target - price) / abs(stop - price), 2)
 
