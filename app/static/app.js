@@ -104,7 +104,7 @@
       if (t === (window.__currentTicker || "")) {
         if (window.__loadPage) window.__loadPage();
       } else {
-        location.href = "/ticker/" + encodeURIComponent(t);
+        location.href = "/ticker/" + t;
       }
     };
     searchInput.addEventListener("keydown", (e) => {
@@ -345,7 +345,9 @@
   // Ticker detail page
   // ======================================================================
   if ($("#ticker-panel")) {
-    const ticker = (window.location.pathname.split("/").pop() || "").toUpperCase().trim();
+    let rawTicker = window.location.pathname.split("/").pop() || "";
+    try { rawTicker = decodeURIComponent(rawTicker); } catch (e) {}
+    const ticker = rawTicker.toUpperCase().trim();
     window.__currentTicker = ticker;
     let tickerData = null;
 
@@ -387,7 +389,7 @@
       const idx = SYMBOL_LIST.findIndex((s) => s.ticker === ticker);
       if (idx < 0) return;
       const next = SYMBOL_LIST[(idx + delta + SYMBOL_LIST.length) % SYMBOL_LIST.length];
-      if (next) location.href = "/ticker/" + encodeURIComponent(next.ticker);
+      if (next) location.href = "/ticker/" + next.ticker;
     };
     const pagerPrev = $("#sym-prev");
     const pagerNext = $("#sym-next");

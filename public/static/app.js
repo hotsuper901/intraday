@@ -180,7 +180,7 @@
       if (t === (window.__currentTicker || "")) {
         if (window.__loadPage) window.__loadPage();
       } else {
-        location.href = "/ticker/" + encodeURIComponent(t);
+        location.href = "/ticker/" + t;
       }
     };
     searchInput.addEventListener("keydown", (e) => {
@@ -356,10 +356,10 @@
   // ======================================================================
   if ($("#ticker-panel")) {
     // Clean URLs: /ticker/BTC-USD (also accepts legacy ?symbol=BTC-USD)
-    const ticker = (
-      (new URLSearchParams(location.search).get("symbol") || "") ||
-      ((location.pathname.match(/\/ticker\/([^/]+)/) || [])[1] || "")
-    ).toUpperCase().trim();
+    let rawTicker = (new URLSearchParams(location.search).get("symbol") || "") ||
+      ((location.pathname.match(/\/ticker\/([^/]+)/) || [])[1] || "");
+    try { rawTicker = decodeURIComponent(rawTicker); } catch (e) {}
+    const ticker = rawTicker.toUpperCase().trim();
     $("#crumb-ticker").textContent = ticker;
     $("#h-ticker").childNodes[0].textContent = ticker + " ";
     window.__currentTicker = ticker;
@@ -403,7 +403,7 @@
       const idx = SYMBOL_LIST.findIndex((s) => s.ticker === ticker);
       if (idx < 0) return;
       const next = SYMBOL_LIST[(idx + delta + SYMBOL_LIST.length) % SYMBOL_LIST.length];
-      if (next) location.href = "/ticker/" + encodeURIComponent(next.ticker);
+      if (next) location.href = "/ticker/" + next.ticker;
     };
     const pagerPrev = $("#sym-prev");
     const pagerNext = $("#sym-next");
