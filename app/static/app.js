@@ -135,8 +135,8 @@
           : "no tickers match — loosen the filters";
         body.innerHTML = `<tr><td colspan="11" class="empty">${esc(msg)}</td></tr>`;
       } else {
-        body.innerHTML = data.rows.map((r) => `
-          <tr>
+        body.innerHTML = data.rows.map((r, i) => `
+          <tr style="--i:${Math.min(i, 20)}">
             <td data-label="Symbol"><a class="ticker-link" href="/ticker/${esc(r.ticker)}">${esc(r.ticker)}</a>${r.asset === "fx" ? '<span class="tag">FX</span>' : r.asset === "crypto" ? '<span class="tag">Crypto</span>' : ""}</td>
             <td class="muted" data-label="Name">${esc(r.name)}</td>
             <td class="num" data-label="Price">${fmtNum(r.price)}</td>

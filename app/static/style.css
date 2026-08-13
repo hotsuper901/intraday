@@ -648,3 +648,122 @@ a:hover { color: #67e8f9; }
 .text-success { color: #34d399 !important; }
 .text-danger { color: #fb7185 !important; }
 .card { --bs-card-bg: rgba(15, 22, 38, 0.82); --bs-card-border-color: rgba(148, 163, 184, 0.14); }
+
+/* ============================================================
+   Design 2.0 — cinematic polish
+   ============================================================ */
+/* animated aurora backdrop */
+body::before {
+  content: ""; position: fixed; inset: -20%;
+  z-index: -1; pointer-events: none;
+  background:
+    radial-gradient(38% 32% at 18% 8%, rgba(34, 211, 238, 0.13), transparent 62%),
+    radial-gradient(34% 30% at 82% 4%, rgba(129, 140, 248, 0.13), transparent 60%),
+    radial-gradient(46% 38% at 55% 108%, rgba(52, 211, 153, 0.07), transparent 60%);
+  filter: blur(34px);
+  animation: auroraDrift 26s ease-in-out infinite alternate;
+}
+@keyframes auroraDrift {
+  0%   { transform: translate3d(-2%, -1%, 0) scale(1); }
+  50%  { transform: translate3d(2%, 2%, 0) scale(1.06); }
+  100% { transform: translate3d(-1%, 1%, 0) scale(1.02); }
+}
+
+::selection { background: rgba(34, 211, 238, 0.28); color: #fff; }
+
+/* panel entrance */
+.panel { animation: panelIn .5s cubic-bezier(.22, 1, .36, 1) both; }
+.panel:nth-child(2) { animation-delay: .07s; }
+.panel:nth-child(3) { animation-delay: .13s; }
+@keyframes panelIn {
+  from { opacity: 0; transform: translateY(14px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.panel:hover {
+  box-shadow: var(--shadow), 0 0 44px rgba(34, 211, 238, 0.10), 0 0 60px rgba(129, 140, 248, 0.07);
+}
+
+/* screener rows stagger in */
+.grid tbody tr { animation: rowIn .4s cubic-bezier(.22, 1, .36, 1) both; animation-delay: calc(var(--i, 0) * 28ms); }
+@keyframes rowIn {
+  from { opacity: 0; transform: translateX(-8px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+
+/* animated gradient brand */
+.brand em {
+  background: linear-gradient(120deg, #22d3ee, #818cf8, #f0abfc, #22d3ee);
+  background-size: 300% 100%;
+  -webkit-background-clip: text; background-clip: text;
+  -webkit-text-fill-color: transparent;
+  animation: brandFlow 6s linear infinite;
+}
+@keyframes brandFlow { to { background-position: 300% 0; } }
+
+/* button shine + lift */
+.btn { position: relative; overflow: hidden; transition: transform .15s ease, box-shadow .2s ease, filter .15s ease; }
+.btn:hover { transform: translateY(-2px); filter: brightness(1.08); }
+.btn::after {
+  content: ""; position: absolute; top: 0; left: -80%; width: 50%; height: 100%;
+  background: linear-gradient(100deg, transparent, rgba(255, 255, 255, 0.22), transparent);
+  transform: skewX(-20deg);
+  transition: left .5s ease;
+}
+.btn:hover::after { left: 130%; }
+.btn.small::after { display: none; }
+
+/* ticker link underline glow */
+.ticker-link { position: relative; }
+.ticker-link::after {
+  content: ""; position: absolute; left: 0; right: 100%; bottom: -2px; height: 1px;
+  background: var(--grad); transition: right .25s ease;
+}
+.ticker-link:hover::after { right: 0; }
+
+/* verdict shine sweep */
+.signal-verdict { position: relative; overflow: hidden; }
+.signal-verdict::after {
+  content: ""; position: absolute; top: 0; left: -70%; width: 40%; height: 100%;
+  background: linear-gradient(100deg, transparent, rgba(255, 255, 255, 0.07), transparent);
+  transform: skewX(-20deg);
+  animation: shineSweep 4.5s ease-in-out infinite;
+}
+@keyframes shineSweep { 0%, 55% { left: -70%; } 85%, 100% { left: 130%; } }
+
+/* chips glow on hover */
+.chip { transition: border-color .2s ease, box-shadow .2s ease, transform .2s ease; }
+.chip:hover { border-color: rgba(34, 211, 238, 0.5); box-shadow: 0 0 14px rgba(34, 211, 238, 0.18); transform: translateY(-1px); }
+
+/* stat card accent bar */
+.card { position: relative; overflow: hidden; }
+.card::before {
+  content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 2px;
+  background: var(--grad); opacity: 0; transition: opacity .2s ease;
+}
+.card:hover::before { opacity: 1; }
+
+/* skeleton shimmer for loading rows */
+.grid .empty, .grid td:only-child {
+  position: relative; overflow: hidden;
+}
+.grid .empty::after {
+  content: ""; position: absolute; inset: 0;
+  background: linear-gradient(100deg, transparent 30%, rgba(34, 211, 238, 0.08) 50%, transparent 70%);
+  animation: shimmer 1.6s linear infinite;
+}
+@keyframes shimmer { from { transform: translateX(-100%); } to { transform: translateX(100%); } }
+
+/* focus visibility */
+:focus-visible { outline: 2px solid rgba(34, 211, 238, 0.7); outline-offset: 2px; }
+
+/* table header gradient hairline */
+.grid thead th { background-image: linear-gradient(180deg, rgba(34, 211, 238, 0.05), transparent); }
+
+/* breadcrumb chevrons */
+.crumbs span::before { content: "›"; color: var(--muted2); }
+
+/* reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  body::before, .brand em, .signal-verdict::after, .tape-track { animation: none; }
+  .panel, .grid tbody tr { animation: none; }
+}
