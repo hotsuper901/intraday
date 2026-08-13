@@ -58,7 +58,23 @@
   }
 
   const fmtVol = (v) => v >= 1e9 ? (v / 1e9).toFixed(2) + "B" : v >= 1e6 ? (v / 1e6).toFixed(1) + "M" : v >= 1e3 ? (v / 1e3).toFixed(0) + "k" : String(v);
-  const fmtNum = (x, d = 2) => (x == null ? "—" : Number(x).toFixed(d));
+  // Adaptive decimals: sub-1 FX pairs (EURGBP 0.85495) need 5 places, a
+  // $600 stock only 2. When no explicit precision is given, scale by size.
+  const smartDec = (x) => {
+    const a = Math.abs(x);
+    if (!isFinite(a) || a >= 1000) return 2;
+    if (a >= 100) return 3;
+    if (a >= 1) return 4;
+    if (a >= 0.01) return 5;
+    return 8;
+  };
+  const fmtNum = (x, d) => {
+    if (x == null) return "—";
+    const n = Number(x);
+    if (!isFinite(n)) return "—";
+    const s = n.toFixed(d == null ? smartDec(n) : d);
+    return d == null ? String(parseFloat(s)) : s;
+  };
   const cls = (x) => (x > 0 ? "pos" : x < 0 ? "neg" : "muted");
   const signed = (x, d = 2) => (x == null ? "—" : (x > 0 ? "+" : "") + Number(x).toFixed(d));
 

@@ -10,6 +10,19 @@
     return ET_FMT.format(new Date(ts * 1000));
   }
 
+  // Adaptive label precision so sub-1 FX pairs don't collapse to "0.85".
+  function smartDec(x) {
+    const a = Math.abs(x);
+    if (!isFinite(a) || a >= 1000) return 2;
+    if (a >= 100) return 3;
+    if (a >= 1) return 4;
+    if (a >= 0.01) return 5;
+    return 8;
+  }
+  function fmtPx(p) {
+    return String(parseFloat(p.toFixed(smartDec(p))));
+  }
+
   const _state = new WeakMap(); // canvas -> { bars, raf }
 
   function drawCandles(canvas, bars, vwapPrice, onHover) {
@@ -68,7 +81,7 @@
         ctx.moveTo(padL, gy);
         ctx.lineTo(cssW - padR, gy);
         ctx.stroke();
-        ctx.fillText(price.toFixed(2), cssW - padR + 6, gy + 3);
+        ctx.fillText(fmtPx(price), cssW - padR + 6, gy + 3);
       }
 
       // volume bars
@@ -92,7 +105,7 @@
         ctx.stroke();
         ctx.setLineDash([]);
         ctx.fillStyle = "#fbbf24";
-        ctx.fillText("VWAP " + vwapPrice.toFixed(2), padL, y(vwapPrice) - 4);
+        ctx.fillText("VWAP " + fmtPx(vwapPrice), padL, y(vwapPrice) - 4);
       }
 
       // candles
@@ -123,7 +136,7 @@
         if (idx < 0 || idx >= arr.length) return;
         const b = arr[idx];
         if (onHover) {
-          const ohlc = `O ${b.open.toFixed(2)}  H ${b.high.toFixed(2)}  L ${b.low.toFixed(2)}  C ${b.close.toFixed(2)}`;
+          const ohlc = `O ${fmtPx(b.open)}  H ${fmtPx(b.high)}  L ${fmtPx(b.low)}  C ${fmtPx(b.close)}`;
           // Narrow screens: drop the time + volume so the readout always fits.
           onHover(cssW < 500 ? ohlc : `${fmtTime(b.ts)}  ${ohlc}  V ${(b.volume / 1000).toFixed(0)}k`);
         }

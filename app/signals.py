@@ -393,10 +393,20 @@ def assess(bars_1m: list[dict], bars_5m: list[dict]) -> dict:
             target = a5["resistance"][0] if a5["resistance"] else price + 3 * atr5
             support = a5["support"][0] if a5["support"] else price - 2 * atr5
             stop = min(support, price - 1.5 * atr5) if a5["support"] else price - 2 * atr5
+            if target <= price:
+                target = price + 3 * atr5
+            # A pivot that sits 2 pips away makes a degenerate R:R — extend the
+            # target so the trade always pays at least 1.5x its risk.
+            if target - price < 1.5 * (price - stop):
+                target = price + 1.5 * (price - stop)
         elif direction == "SELL":
             target = a5["support"][0] if a5["support"] else price - 3 * atr5
             resistance = a5["resistance"][0] if a5["resistance"] else price + 2 * atr5
             stop = max(resistance, price + 1.5 * atr5) if a5["resistance"] else price + 2 * atr5
+            if target >= price:
+                target = price - 3 * atr5
+            if price - target < 1.5 * (stop - price):
+                target = price - 1.5 * (stop - price)
         else:
             target = a5["resistance"][0] if a5["resistance"] else price + 2 * atr5
             support = a5["support"][0] if a5["support"] else price - 2 * atr5
