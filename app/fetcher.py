@@ -400,7 +400,12 @@ async def fetch_cnbc_quote(client: httpx.AsyncClient, ticker: str) -> dict | Non
 async def fetch_yahoo_edge_batch(client: httpx.AsyncClient, tickers: list, interval: int = 5) -> dict:
     """One batched edge call for many FX tickers — the middleware fetches all
     URLs in parallel inside the edge, so a cold start pays one round-trip."""
-    vercel_url = os.environ.get("VERCEL_URL", "")
+    # Route through the public production domain so requests pass the edge
+    # (where the proxy middleware runs); VERCEL_URL hits the internal origin.
+    vercel_url = (
+        os.environ.get("VERCEL_PROJECT_PRODUCTION_URL")
+        or os.environ.get("VERCEL_URL", "")
+    )
     if not vercel_url or not tickers:
         return {}
     urls = {
