@@ -4,6 +4,7 @@
     { "source": "/ticker.html", "destination": "/", "permanent": true }
   ],
   "rewrites": [
-    { "source": "/ticker/:symbol", "destination": "/ticker.html?symbol=:symbol" }
+    { "source": "/ticker/:symbol", "destination": "/ticker.html?symbol=:symbol" },
+    { "source": "/guide", "destination": "/guide.html" }
   ]
 }
