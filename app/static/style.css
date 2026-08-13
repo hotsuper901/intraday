@@ -767,3 +767,82 @@ body::before {
   body::before, .brand em, .signal-verdict::after, .tape-track { animation: none; }
   .panel, .grid tbody tr { animation: none; }
 }
+
+/* ============================================================
+   Design 3.0 — UX refinements (sort states, frozen column,
+   price flash, semantic confidence meter, crosshair, TOC)
+   ============================================================ */
+:root { --text2: #aab6ca; }
+html { scroll-behavior: smooth; scroll-padding-top: 76px; }
+
+/* ---------- top nav (desktop) ---------- */
+.topnav { display: flex; gap: 4px; align-items: center; margin-left: 6px; padding-left: 12px; border-left: 1px solid var(--line-strong); }
+.topnav-link {
+  color: var(--muted); font-size: 13px; font-weight: 600; padding: 6px 12px;
+  border-radius: 9px; transition: color .15s ease, background .15s ease;
+}
+.topnav-link:hover { color: var(--cyan); background: rgba(34, 211, 238, 0.08); }
+.topnav-link.active { color: var(--cyan); background: rgba(34, 211, 238, 0.1); }
+
+/* ---------- screener: sort indicators ---------- */
+.grid th.sorted { color: var(--cyan); }
+.grid th.sorted::after { content: "▾"; margin-left: 5px; font-size: 9px; opacity: .9; }
+.grid th.sorted.asc::after { content: "▴"; }
+
+/* ---------- screener: change gauge bar ---------- */
+.bar-cell { position: relative; }
+.chg-fill {
+  position: absolute; right: 0; top: 18%; bottom: 18%;
+  background: currentColor; opacity: .12; border-radius: 4px 0 0 4px; pointer-events: none;
+}
+.chg-val { position: relative; }
+
+/* ---------- screener: frozen symbol column (desktop) ---------- */
+@media (min-width: 641px) {
+  #screener-table th:first-child { position: sticky; left: 0; z-index: 3; background: rgba(11, 17, 30, 0.98); }
+  #screener-table td:first-child { position: sticky; left: 0; z-index: 2; background: rgba(13, 19, 33, 0.96); }
+  #screener-table tbody tr:hover td:first-child { background: rgba(18, 27, 47, 0.99); }
+}
+
+/* ---------- price flash on live update ---------- */
+@keyframes priceFlash {
+  0% { text-shadow: 0 0 26px currentColor; }
+  100% { text-shadow: 0 0 0 transparent; }
+}
+.flash-up { color: var(--green) !important; animation: priceFlash .8s ease-out; }
+.flash-down { color: var(--red) !important; animation: priceFlash .8s ease-out; }
+
+/* ---------- semantic confidence meter ---------- */
+.conf-bar.conf-bull { background: linear-gradient(90deg, #10b981, #2ee6a8); }
+.conf-bar.conf-bear { background: linear-gradient(90deg, #f43f5e, #ff8fa3); }
+.conf-bar.conf-flat { background: linear-gradient(90deg, #64748b, #8b98ad); }
+
+/* ---------- signal verdict glow for strong calls ---------- */
+.signal-verdict.strong-buy { box-shadow: 0 0 44px rgba(46, 230, 168, .16), inset 0 0 26px rgba(46, 230, 168, .05); }
+.signal-verdict.strong-sell { box-shadow: 0 0 44px rgba(255, 143, 163, .16), inset 0 0 26px rgba(255, 143, 163, .05); }
+
+/* ---------- guide TOC ---------- */
+.guide-layout { display: grid; grid-template-columns: 190px minmax(0, 1fr); gap: 18px; align-items: start; }
+.toc {
+  position: sticky; top: 78px; display: flex; flex-direction: column; gap: 2px;
+  background: var(--panel); border: 1px solid var(--line); border-radius: 14px;
+  padding: 14px 12px; box-shadow: var(--shadow);
+}
+.toc-title { font-size: 10.5px; color: var(--muted2); text-transform: uppercase; letter-spacing: .08em; font-weight: 700; margin: 0 6px 8px; }
+.toc a { color: var(--muted); font-size: 12.5px; font-weight: 500; padding: 5px 8px; border-radius: 7px; }
+.toc a:hover { color: var(--cyan); background: rgba(34, 211, 238, 0.07); }
+@media (max-width: 940px) {
+  .guide-layout { grid-template-columns: 1fr; }
+  .toc { display: none; }
+}
+
+/* ---------- phone: compact header, icon-only actions ---------- */
+@media (max-width: 640px) {
+  .topnav { display: none; }
+  .topbar-right .btn .btn-text { display: none; }   /* 📘 + ⟳ become icon buttons */
+  .topbar-right .btn { min-width: 40px; min-height: 40px; display: inline-flex; align-items: center; justify-content: center; padding: 0 12px; }
+  .btn { min-height: 40px; }
+  .btn.small { min-height: 34px; }
+  #mode-pill { display: none; }
+  .grid tbody tr:active { background: rgba(34, 211, 238, 0.06); }
+}

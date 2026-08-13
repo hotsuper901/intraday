@@ -156,7 +156,7 @@
             <td data-label="Symbol"><a class="ticker-link" href="/ticker/${esc(r.ticker)}">${esc(r.ticker)}</a>${r.asset === "fx" ? '<span class="tag">FX</span>' : r.asset === "crypto" ? '<span class="tag">Crypto</span>' : ""}</td>
             <td class="muted" data-label="Name">${esc(r.name)}</td>
             <td class="num" data-label="Price">${fmtNum(r.price)}</td>
-            <td class="num ${cls(r.change_pct)}" data-label="Chg %">${signed(r.change_pct)}%</td>
+            <td class="num bar-cell ${cls(r.change_pct)}" data-label="Chg %"><span class="chg-fill" style="width:${Math.min(Math.abs(r.change_pct || 0) * 18, 100)}%"></span><span class="chg-val">${signed(r.change_pct)}%</span></td>
             <td class="num ${cls(r.from_open_pct)}" data-label="Open %">${signed(r.from_open_pct)}%</td>
             <td class="num ${cls(r.rel_vol - 1)}" data-label="RelVol">${r.rel_vol == null ? "—" : fmtNum(r.rel_vol) + "x"}</td>
             <td class="num" data-label="ATR %">${r.atr_pct == null ? "—" : fmtNum(r.atr_pct) + "%"}</td>
@@ -194,8 +194,27 @@
       $("#f-min-price").value = ""; $("#f-max-price").value = "";
       loadScreener();
     });
+    const updateSortTh = () => {
+      document.querySelectorAll("th[data-sort]").forEach((th) => {
+        const base = th.dataset.sort.replace(/_(asc|desc)$/, "");
+        const active = sort.replace(/_(asc|desc)$/, "") === base;
+        th.classList.toggle("sorted", active);
+        th.classList.toggle("asc", active && !sort.endsWith("_desc"));
+        th.classList.toggle("desc", active && sort.endsWith("_desc"));
+      });
+    };
     document.querySelectorAll("th[data-sort]").forEach((th) =>
-      th.addEventListener("click", () => { sort = th.dataset.sort; loadScreener(); }));
+      th.addEventListener("click", () => {
+        const base = th.dataset.sort.replace(/_(asc|desc)$/, "");
+        if (base === "change") {
+          sort = sort === "change_desc" ? "change_asc" : "change_desc";
+        } else {
+          sort = base; // relvol | atr | rsi (desc)
+        }
+        updateSortTh();
+        loadScreener();
+      }));
+    updateSortTh();
 
     // filter drawer toggle (phones)
     const ft = $("#filter-toggle");
@@ -223,7 +242,20 @@
 
     const renderStats = (m) => {
       $("#t-name").textContent = m.name && m.name !== m.ticker ? "— " + m.name : "";
-      $("#t-price").textContent = fmtNum(m.price);
+      const priceEl = $("#t-price");
+      if (priceEl) {
+        const prev = parseFloat(priceEl.textContent.replace(/[^0-9.\-]/g, "")) || null;
+        priceEl.textContent = fmtNum(m.price);
+        // Flash green/red when the live price actually moves
+        if (prev != null && m.price != null && prev !== m.price) {
+          priceEl.classList.remove("flash-up", "flash-down");
+          void priceEl.offsetWidth; // restart the animation
+          priceEl.classList.add(m.price > prev ? "flash-up" : "flash-down");
+          clearTimeout(priceEl._flashTimer);
+          priceEl._flashTimer = setTimeout(
+            () => priceEl.classList.remove("flash-up", "flash-down"), 900);
+        }
+      }
       const chg = $("#t-change");
       chg.textContent = `${signed(m.change_pct)}% today`;
       chg.className = "pill " + (m.change_pct > 0 ? "pos" : m.change_pct < 0 ? "neg" : "muted");
@@ -338,7 +370,11 @@
           `<span class="sv-sub">${s.direction} · score ${s.score > 0 ? "+" : ""}${s.score}</span>`;
       }
       const cb = $("#conf-bar");
-      if (cb) cb.style.width = (s.confidence || 0) + "%";
+      if (cb) {
+        cb.style.width = (s.confidence || 0) + "%";
+        const tone = s.verdict.includes("BUY") ? "bull" : s.verdict.includes("SELL") ? "bear" : "flat";
+        cb.className = "conf-bar progress-bar conf-" + tone;
+      }
       const cl = $("#conf-label");
       if (cl) cl.textContent = `${s.confidence}% confidence${s.confluence ? " · 1m+5m confluence" : ""}`;
       const tfs = $("#sig-tfs");
@@ -360,8 +396,8 @@
       if (pred) {
         pred.innerHTML = p.entry == null ? "" : `
           <div class="pred-item"><span class="k">Entry</span><span class="v">${fmtNum(p.entry)}</span></div>
-          <div class="pred-item ${p.target != null && p.target > p.entry ? "pos" : p.target != null ? "neg" : ""}"><span class="k">Target</span><span class="v">${p.target != null ? fmtNum(p.target) : "—"}</span></div>
-          <div class="pred-item neg"><span class="k">Stop</span><span class="v">${p.stop != null ? fmtNum(p.stop) : "—"}</span></div>
+          <div class="pred-item ${p.target != null && p.target > p.entry ? "pos" : p.target != null ? "neg" : ""}"><span class="k">Target ${p.target != null && p.target > p.entry ? "▲" : p.target != null ? "▼" : ""}</span><span class="v">${p.target != null ? fmtNum(p.target) : "—"}</span></div>
+          <div class="pred-item neg"><span class="k">Stop ${p.stop != null && p.stop < p.entry ? "▼" : p.stop != null ? "▲" : ""}</span><span class="v">${p.stop != null ? fmtNum(p.stop) : "—"}</span></div>
           <div class="pred-item"><span class="k">R:R</span><span class="v">${p.rr != null ? "1 : " + p.rr : "—"}</span></div>`;
       }
       const rs = $("#signal-reasons");

@@ -14,12 +14,16 @@
   <header class="topbar">
     <a class="brand" href="/"><span class="logo">▮</span> Intraday <em>Radar</em></a>
     <span class="byline">by <b>M.S.J Hafiz</b></span>
+    <nav class="topnav">
+      <a href="/" class="topnav-link {% if request.url.path == '/' %}active{% endif %}">Screener</a>
+      <a href="/guide" class="topnav-link {% if request.url.path == '/guide' %}active{% endif %}">Guide</a>
+    </nav>
     <div class="topbar-right">
-      <a class="btn btn-sm btn-outline-primary" href="/guide" title="How to trade the signal — Binomo, Pocket Option, IQ Option & more">📘 How to use</a>
+      <a class="btn btn-sm btn-outline-primary" href="/guide" title="How to trade the signal — Binomo, Pocket Option, IQ Option & more">📘 <span class="btn-text">How to use</span></a>
       <span class="pill badge rounded-pill" id="mode-pill">{{ data_mode|upper }}</span>
       <span class="pill badge rounded-pill" id="state-pill">{{ market_state|upper }}</span>
       <span class="clock" id="et-clock">--:--:-- ET</span>
-      <button class="btn btn-primary" id="refresh-btn" title="Fetch fresh bars now">⟳ Refresh</button>
+      <button class="btn btn-primary" id="refresh-btn" title="Fetch fresh bars now">⟳ <span class="btn-text">Refresh</span></button>
     </div>
   </header>
   <div class="tape"><div class="tape-track" id="tape-track"></div></div>

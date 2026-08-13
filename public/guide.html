@@ -45,23 +45,40 @@
   <header class="topbar">
     <a class="brand" href="/"><span class="logo">▮</span> Intraday <em>Radar</em></a>
     <span class="byline">by <b>M.S.J Hafiz</b></span>
+    <nav class="topnav">
+      <a href="/" class="topnav-link">Screener</a>
+      <a href="/guide" class="topnav-link active">Guide</a>
+    </nav>
     <div class="topbar-right">
       <span class="pill badge rounded-pill" id="mode-pill">—</span>
       <span class="pill badge rounded-pill" id="state-pill">—</span>
       <span class="clock" id="et-clock">--:--:-- ET</span>
-      <a class="btn btn-primary" href="/">← Screener</a>
+      <a class="btn btn-primary" href="/">⟳ <span class="btn-text">Screener</span></a>
     </div>
   </header>
   <div class="tape"><div class="tape-track" id="tape-track"></div></div>
   <main class="container-xxl">
     <div class="crumbs"><a href="/">screener</a><span>guide</span></div>
 
-    <section class="panel guide">
+    <div class="guide-layout">
+      <aside class="toc">
+        <div class="toc-title">On this page</div>
+        <a href="#read">1 · Reading the signal</a>
+        <a href="#routine">2 · Trade routine</a>
+        <a href="#expiry">3 · Expiry mapping</a>
+        <a href="#binomo">4 · Binomo</a>
+        <a href="#pocket">5 · Pocket Option</a>
+        <a href="#iqoption">6 · IQ Option</a>
+        <a href="#others">7 · Other brokers</a>
+        <a href="#risk">8 · Risk rules</a>
+      </aside>
+
+    <section class="panel guide" id="guide-body">
       <div class="panel-head">
         <h1>How to trade the signal <span class="sub">manual for Binomo · Pocket Option · IQ Option · Quotex · Olymp Trade · Deriv · ExpertOption and any MT5/MT4 broker</span></h1>
       </div>
 
-      <h2>1 · Reading the signal panel</h2>
+      <h2 id="read">1 · Reading the signal panel</h2>
       <p>Every ticker page (<a href="/ticker/AAPL" style="color:var(--cyan)">/ticker/SYMBOL</a>) has a <b>Trading signal</b> panel built from 1-minute + 5-minute bars with nine indicators (EMA stack, MACD, RSI, stochastic, Bollinger, VWAP, OBV, ATR, candlestick patterns). It refreshes every 30 seconds and re-runs on the <b>⟳ Analyze</b> button.</p>
       <div class="verdict-demo">
         <span class="vbox strong-buy"><b>STRONG BUY</b>score ≥ +3.0</span>
@@ -80,14 +97,14 @@
         <li><b>5m-only analysis</b> chip — 1-minute data was unavailable; the signal is a single-timeframe call. Halve your normal size.</li>
       </ul>
 
-      <h2>2 · The 5-step trade routine</h2>
+      <h2 id="routine">2 · The 5-step trade routine</h2>
       <div class="step"><div class="n">1</div><div>Open the screener, filter by movers (Min chg % 1.5, Min rel vol 1.5), click a symbol — or open <span class="key">/ticker/EURUSD=X</span> directly for the pair you trade.</div></div>
       <div class="step"><div class="n">2</div><div>Wait for the <b>current 5-minute candle to close</b>. The signal recalculates on the closed bar; entries taken mid-candle get invalidated by the next refresh.</div></div>
       <div class="step"><div class="n">3</div><div>Only act on BUY/SELL or stronger, confidence ≥ 60, and check the 1m/5m boxes agree in direction (confluence label visible).</div></div>
       <div class="step"><div class="n">4</div><div>Confirm the same asset on your broker's chart — same pair, same direction, and ideally your broker's own momentum (price above VWAP on the panel for buys).</div></div>
       <div class="step"><div class="n">5</div><div>Enter with the platform you use (below). The signal is valid for the <b>current 5-minute bar</b> — if the next bar changes the verdict, stand down and wait for the next setup.</div></div>
 
-      <h2>3 · Expiry mapping (binary / fixed-time platforms)</h2>
+      <h2 id="expiry">3 · Expiry mapping (binary / fixed-time platforms)</h2>
       <table class="grid">
         <thead><tr><th>Signal</th><th>Confidence</th><th>Recommended expiry</th><th>Notes</th></tr></thead>
         <tbody>
@@ -99,7 +116,7 @@
       </table>
       <p style="margin-top:10px">Rule of thumb: expiry = 1–3 signal bars. A 5-minute-bar signal with a 1-minute expiry is noise; with a 1-hour expiry it's a gamble on trend that the signal never measured.</p>
 
-      <h2>4 · Binomo</h2>
+      <h2 id="binomo">4 · Binomo</h2>
       <div class="broker">
         <h3>Fixed-time trades on FX majors <span class="hint">· EUR/USD, GBP/USD, USD/JPY … map 1:1 to the EURUSD=X style pairs</span></h3>
         <ul>
@@ -112,7 +129,7 @@
         <div class="warn">Binomo payouts are fixed at entry and losses are 100% of stake — the signal's R:R can't save a losing binary. That's why the NEUTRAL skip and the confidence ≥ 60 filter matter more than the verdict itself.</div>
       </div>
 
-      <h2>5 · Pocket Option</h2>
+      <h2 id="pocket">5 · Pocket Option</h2>
       <div class="broker">
         <h3>High/Low + OTC <span class="hint">· 100+ assets, 5s–4h expiry, up to 92% payout</span></h3>
         <ul>
@@ -124,7 +141,7 @@
         </ul>
       </div>
 
-      <h2>6 · IQ Option</h2>
+      <h2 id="iqoption">6 · IQ Option</h2>
       <div class="broker">
         <h3>Regulated broker <span class="hint">· FX CFDs, digital options, and (jurisdiction-dependent) binaries</span></h3>
         <ul>
@@ -135,7 +152,7 @@
         </ul>
       </div>
 
-      <h2>7 · Other supported brokers</h2>
+      <h2 id="others">7 · Other supported brokers</h2>
       <table class="grid">
         <thead><tr><th>Broker</th><th>Product to use</th><th>Expiry / mapping</th><th>Notes</th></tr></thead>
         <tbody>
@@ -149,7 +166,7 @@
       </table>
       <p style="margin-top:10px">The signal works on <b>any</b> broker listing the same asset — the panel is broker-agnostic. Crypto signals (BTC-USD, ETH-USD…) trade 24/7 anywhere; equity signals only carry weight inside the 09:30–16:00 ET US session; FX signals 24/5 (Sun 17:00 ET → Fri 17:00 ET).</p>
 
-      <h2>8 · Risk rules (non-negotiable)</h2>
+      <h2 id="risk">8 · Risk rules (non-negotiable)</h2>
       <ul>
         <li>Risk <b>1–2%</b> of the account per trade (5% absolute max, STRONG signals only).</li>
         <li>Max <b>3 consecutive losses</b> per session — then stop for the day. Signals don't revenge-trade; you do.</li>
@@ -161,6 +178,7 @@
 
       <div class="warn">No signal predicts the future — this panel measures momentum, trend and volatility, and even a 94%-confidence STRONG call loses sometimes. Treat the signal as a filter that keeps you out of bad entries, not as a guarantee.</div>
     </section>
+    </div>
   </main>
   <footer class="site-foot">
     Intraday Radar <span class="sep">•</span> <a href="/guide" style="color:var(--muted)">Signal trading manual</a> <span class="sep">•</span> Crafted by <span class="credit">M.S.J Hafiz</span>

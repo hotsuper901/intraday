@@ -26,7 +26,7 @@
   const _state = new WeakMap(); // canvas -> { bars, raf }
 
   function drawCandles(canvas, bars, vwapPrice, onHover) {
-    const st = _state.get(canvas) || { bars: null, raf: null };
+    const st = _state.get(canvas) || { bars: null, raf: null, hoverIdx: null };
     if (st.raf) cancelAnimationFrame(st.raf);
     const prev = st.bars;
     const target = bars.slice();
@@ -129,11 +129,34 @@
         }
       }
 
+      // hover crosshair + highlighted candle
+      if (st.hoverIdx != null && st.hoverIdx >= 0 && st.hoverIdx < arr.length) {
+        const hb = arr[st.hoverIdx];
+        const cx = x(st.hoverIdx);
+        const cy = y(hb.close);
+        ctx.save();
+        ctx.strokeStyle = "rgba(34,211,238,.32)";
+        ctx.setLineDash([3, 3]);
+        ctx.beginPath(); ctx.moveTo(cx, padT); ctx.lineTo(cx, padT + priceH); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(padL, cy); ctx.lineTo(cssW - padR, cy); ctx.stroke();
+        ctx.setLineDash([]);
+        ctx.fillStyle = "rgba(34,211,238,.12)";
+        ctx.fillRect(padL, cy - 7, cssW - padR - padL, 14);
+        ctx.strokeStyle = "rgba(34,211,238,.75)";
+        ctx.strokeRect(x(st.hoverIdx) - cw / 2 - 2, y(Math.max(hb.open, hb.close)) - 2,
+          cw + 4, Math.max(1, Math.abs(y(hb.open) - y(hb.close))) + 4);
+        ctx.restore();
+      }
+
       // hover (desktop) + touch inspection (phones)
       let hideTimer = null;
-      function showAt(clientX) {
+      function idxAt(clientX) {
         const idx = Math.round((clientX - padL) / (plotW / arr.length) - 0.5);
-        if (idx < 0 || idx >= arr.length) return;
+        return (idx < 0 || idx >= arr.length) ? null : idx;
+      }
+      function showAt(clientX) {
+        const idx = idxAt(clientX);
+        if (idx == null) return;
         const b = arr[idx];
         if (onHover) {
           const ohlc = `O ${fmtPx(b.open)}  H ${fmtPx(b.high)}  L ${fmtPx(b.low)}  C ${fmtPx(b.close)}`;
@@ -141,20 +164,35 @@
           onHover(cssW < 500 ? ohlc : `${fmtTime(b.ts)}  ${ohlc}  V ${(b.volume / 1000).toFixed(0)}k`);
         }
       }
+      const redraw = () => { if (!st.raf) requestAnimationFrame(() => render(arr)); };
       canvas.onmousemove = (e) => {
-        showAt(e.clientX - canvas.getBoundingClientRect().left);
+        const cx = e.clientX - canvas.getBoundingClientRect().left;
+        st.hoverIdx = idxAt(cx);
+        showAt(cx);
+        redraw();
       };
-      canvas.onmouseleave = () => { if (onHover) onHover(null); };
+      canvas.onmouseleave = () => {
+        st.hoverIdx = null;
+        if (onHover) onHover(null);
+        redraw();
+      };
       canvas.addEventListener("touchstart", (e) => {
-        showAt(e.touches[0].clientX - canvas.getBoundingClientRect().left);
+        const cx = e.touches[0].clientX - canvas.getBoundingClientRect().left;
+        st.hoverIdx = idxAt(cx);
+        showAt(cx);
+        redraw();
         clearTimeout(hideTimer);
       }, { passive: true });
       canvas.addEventListener("touchmove", (e) => {
-        showAt(e.touches[0].clientX - canvas.getBoundingClientRect().left);
+        const cx = e.touches[0].clientX - canvas.getBoundingClientRect().left;
+        st.hoverIdx = idxAt(cx);
+        showAt(cx);
+        redraw();
         clearTimeout(hideTimer);
       }, { passive: true });
       canvas.addEventListener("touchend", () => {
-        hideTimer = setTimeout(() => { if (onHover) onHover(null); }, 1600);
+        st.hoverIdx = null;
+        hideTimer = setTimeout(() => { if (onHover) onHover(null); redraw(); }, 1600);
       });
     }
 
