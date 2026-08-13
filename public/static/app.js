@@ -463,9 +463,11 @@
 
     const readoutCb = (txt) => { $("#chart-readout").textContent = txt || "tap a candle to inspect"; };
 
+    const chartOpts = () => ({ symbol: ticker, interval: tf + "m" });
+
     const renderChart = () => {
       if (!tickerData) return;
-      drawCandles($("#chart"), tickerData.bars.slice(-78), tickerData.metrics.vwap, readoutCb);
+      drawCandles($("#chart"), tickerData.bars.slice(-78), tickerData.metrics.vwap, readoutCb, chartOpts());
     };
 
     // --- live forming candle: tick the last bar between real fetches -------
@@ -479,15 +481,28 @@
         if (!tickerData || !tickerData.bars.length) return;
         const bars = tickerData.bars;
         const last = bars[bars.length - 1];
-        // Nudge the forming candle's close inside its own high/low range.
+        // Tick the forming candle inside its own range, biased by its
+        // direction so the candle breathes like a live feed between polls.
+        const span = (last.high - last.low) || (last.close * 0.0004) || 0.01;
+        const dir = last.close >= last.open ? 0.55 : 0.45;
+        const step = span * 0.16 * (Math.random() < dir ? 1 : -1) * (0.4 + Math.random() * 0.8);
+        const close = Math.min(last.high + span * 0.1, Math.max(last.low - span * 0.1, last.close + step));
         const fake = {
-          ts: last.ts, open: last.open, high: last.high, low: last.low,
-          volume: last.volume,
-          close: Math.min(last.high, Math.max(last.low,
-            last.close + (last.high - last.low) * 0.14 * (Math.random() - 0.5))),
+          ts: last.ts, open: last.open,
+          high: Math.max(last.high, close),
+          low: Math.min(last.low, close),
+          volume: last.volume + (Math.random() * 0.02 * (last.volume || 1)),
+          close,
         };
-        drawCandles($("#chart"), bars.slice(-78, -1).concat([fake]), tickerData.metrics.vwap, readoutCb);
-      }, 900);
+        drawCandles($("#chart"), bars.slice(-78, -1).concat([fake]), tickerData.metrics.vwap, readoutCb, chartOpts());
+        // Demo feeds move once per bar — mirror the ticked price in the
+        // header so the whole page feels live (live mode only updates the
+        // price from real API responses).
+        if (tickerData.data_mode === "demo") {
+          const priceEl = $("#t-price");
+          if (priceEl) priceEl.textContent = fmtNum(close);
+        }
+      }, 700);
     }
 
     async function loadTicker() {
@@ -615,7 +630,7 @@
 
     loadTicker();
     loadTape();
-    setInterval(loadTicker, 10000);
+    setInterval(loadTicker, 5000);
     setInterval(loadTape, 20000);
     setInterval(loadSignal, 30000);
   }

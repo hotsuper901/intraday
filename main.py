@@ -70,7 +70,7 @@ app.add_middleware(GZipMiddleware, minimum_size=500)
 # On-demand fetch layer with a per-warm-instance TTL cache
 # --------------------------------------------------------------------------
 _INSTANCE_CACHE: dict[tuple[str, int], tuple[float, list, dict | None, str]] = {}
-_TTL_SECONDS = 45.0
+_TTL_SECONDS = 20.0
 _FX_BATCH_CACHE: dict = {"ts": 0.0, "results": {}}
 _FX_BATCH_1M_CACHE: dict = {"ts": 0.0, "results": {}}
 

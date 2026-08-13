@@ -982,3 +982,9 @@ html { scroll-behavior: smooth; scroll-padding-top: 76px; }
   .guide .broker { content-visibility: auto; contain-intrinsic-size: auto 220px; }
   #guide-body table.grid { content-visibility: auto; contain-intrinsic-size: auto 180px; }
 }
+
+/* TradingView-style chart: desktop uses the in-canvas tooltip, the fixed
+   DOM readout stays only for the phone bottom bar. */
+@media (hover: hover) and (min-width: 641px) {
+  .chart-readout { display: none; }
+}
